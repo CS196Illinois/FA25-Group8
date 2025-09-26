@@ -1,5 +1,5 @@
-# Group TEAM_NUMBER
-Group Name: 8
+# Group 8
+Group Name: Study@UIUC
 
 [MVP Link](https://docs.google.com/document/d/10f5I7KuchJOceNyl1uaiJ0t9IRC5DIzd/edit?usp=sharing&ouid=106476638032863164371&rtpof=true&sd=true)
 
