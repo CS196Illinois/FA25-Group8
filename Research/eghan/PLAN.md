@@ -1,8 +1,11 @@
-Plan file. Can also be a PDF or something else. Just make sure to name PLAN with all caps
+# StudySync - Backend Plan v1
 
-StudySync - Backend Plan v1
-User Data Model
-This is the proposed structure for storing user information in our Firestore database.json
+This document outlines the initial backend architecture for the StudySync project, including the data model for users and the foundational security rules.
+
+## User Data Model
+This is the proposed structure for storing user information in our Firestore database. By separating privateProfile, we can apply stricter security rules to sensitive information.json
+
+```json
 // In a collection called "users"
 // Each document's ID will be the user's unique Firebase Auth UID
 {
@@ -11,18 +14,18 @@ This is the proposed structure for storing user information in our Firestore dat
 "displayName": "Habib",
 "createdAt": "timestamp",
 "courses":,
-// Sub-collection for private, sensitive info
 "privateProfile": {
-"phoneNumber": "555-123-4567", // optional
+"phoneNumber": "555-123-4567",
 "linkedSocials": {
-"discord": "habib#1234" // optional
+"discord": "habib#1234"
 }
 }
 }
+
 
 ## Initial Security Rules
 
-These are the initial security rules to ensure user data is private by default.
+These are the initial security rules for the `users` collection. They enforce a "content-owner only" policy, meaning a user can only read or write their own data, ensuring privacy by default.
 
 ```javascript
 // These rules are written in Firebase's security rule language
