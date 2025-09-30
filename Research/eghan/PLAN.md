@@ -3,25 +3,26 @@
 This document outlines the initial backend architecture for the StudySync project, including the data model for users and the foundational security rules.
 
 ## User Data Model
-This is the proposed structure for storing user information in our Firestore database. By separating privateProfile, we can apply stricter security rules to sensitive information.json
+
+This is the proposed structure for storing user information in our Firestore database. By separating `privateProfile`, we can apply stricter security rules to sensitive information.
 
 ```json
 // In a collection called "users"
 // Each document's ID will be the user's unique Firebase Auth UID
 {
-"uid": "auto_generated_by_firebase_auth",
-"email": "user@example.com",
-"displayName": "Habib",
-"createdAt": "timestamp",
-"courses":,
-"privateProfile": {
-"phoneNumber": "555-123-4567",
-"linkedSocials": {
-"discord": "habib#1234"
+  "uid": "auto_generated_by_firebase_auth",
+  "email": "user@example.com",
+  "displayName": "User Name",
+  "createdAt": "timestamp",
+  "courses":,
+  "privateProfile": {
+    "phoneNumber": "555-123-4567",
+    "linkedSocials": {
+      "discord": "username"
+    }
+  }
 }
-}
-}
-
+```
 
 ## Initial Security Rules
 
@@ -43,3 +44,4 @@ service cloud.firestore {
     }
   }
 }
+```
