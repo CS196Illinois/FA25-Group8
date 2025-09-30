@@ -38,7 +38,7 @@ This will download the project from our shared GitHub to your computer.
 
 1. Open a new, regular PowerShell terminal.
 
-Navigate to the directory where you want to store the project (e.g., `cd C:\Users\YourUsername`).
+2. Navigate to the directory where you want to store the project (e.g., `cd C:\Users\YourUsername`).
 
 3. Run the clone command:
 
