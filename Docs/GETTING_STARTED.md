@@ -14,7 +14,7 @@ Before you begin, make sure you have the following tools installed on your compu
 
     * **Download Link:** https://git-scm.com/download/win
 
-* *Note for Windows users:* During installation, you can safely accept all the default settings by clicking "Next" on every screen.
+    * *Note for Windows users:* During installation, you can safely accept all the default settings by clicking "Next" on every screen.
 
 3. **Visual Studio Code:** This is our team's official code editor.
 
