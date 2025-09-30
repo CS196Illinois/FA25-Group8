@@ -8,17 +8,17 @@ Before you begin, make sure you have the following tools installed on your compu
 
 1. **Node.js (LTS Version):** This is the runtime for our JavaScript backend. It automatically includes npm, the package manager we need.
 
-* **Download Link:** https://nodejs.org/
+    * **Download Link:** https://nodejs.org/
 
 2. **Git:** This is the version control system we use to manage and share our code.
 
-* **Download Link:** https://git-scm.com/download/win
+    * **Download Link:** https://git-scm.com/download/win
 
 * *Note for Windows users:* During installation, you can safely accept all the default settings by clicking "Next" on every screen.
 
 3. **Visual Studio Code:** This is our team's official code editor.
 
-* **Download Link:** https://code.visualstudio.com/
+    * **Download Link:** https://code.visualstudio.com/
 
 **Step 2: Fix for Windows PowerShell (Windows Users Only)**
 
