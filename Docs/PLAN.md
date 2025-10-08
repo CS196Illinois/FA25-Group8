@@ -16,7 +16,7 @@ This is the proposed structure for storing user information in our Firestore dat
   "courses":,
   "privateProfile": {
     "phoneNumber": "555-123-4567", // Optional
-    // MODIFIED: This is now a map, allowing users to add any social media they want.
+    // This is a map, allowing users to add any social media they want.
     "linkedSocials": {
       "discord": "username",
       "instagram": "@username",
@@ -26,7 +26,7 @@ This is the proposed structure for storing user information in our Firestore dat
 }
 ```
 
-## Sessions Data Model
+## Sessions Data Model (v3)
 
 This collection will store all user-created study sessions.json
 
@@ -46,8 +46,10 @@ This collection will store all user-created study sessions.json
     "longitude": -88.2272
   },
   "startTime": "timestamp",
-  "endTime": "timestamp", // This field is optional (can be null).
-  "capacity": 6,
+  "endTime": "timestamp", // Optional (can be null)
+  // NEW: Defines the attendance policy for the session.
+  "signupPolicy": "preferred", // Can be "required", "preferred", or "open"
+  "capacity": 10, // Optional, only relevant if signupPolicy is 'required' or 'preferred'
   "attendees": [
     "uid_of_attendee_1",
     "uid_of_attendee_2"
@@ -57,7 +59,7 @@ This collection will store all user-created study sessions.json
 }
 ```
 
-## Locations & Ratings Data Models
+## Locations & Ratings Data Models (v3)
 
 To handle crowdsourced ratings for study spots, we will use two related collections.
 
@@ -65,7 +67,8 @@ To handle crowdsourced ratings for study spots, we will use two related collecti
 // In a collection called "locations"
 {
   "locationId": "auto_generated_id_or_google_places_id",
-  "name": "Siebel Center for CS, Room 2406",
+  // MODIFIED: The name is now the general, rateable location.
+  "name": "Main Library",
   "ratingCount": 25,
   "averageRating": 4.5
 }
@@ -79,7 +82,7 @@ To handle crowdsourced ratings for study spots, we will use two related collecti
   "userId": "uid_of_the_user_giving_the_rating",
   "sessionId": "id_of_the_session_where_rating_occurred",
   "rating": 5,
-  "comment": "Great spot, very quiet.",
+  "comment": "Great spot, very quiet.", // MODIFIED: This field is now optional.
   "createdAt": "timestamp"
 }
 ```
