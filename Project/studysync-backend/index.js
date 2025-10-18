@@ -1,10 +1,12 @@
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
+const morgan = require('morgan');
 const app = express();
 const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
+app.use(morgan('dev')); 
 
 // Path to your service account key
 const serviceAccount = require('./serviceAccountKey.json');
