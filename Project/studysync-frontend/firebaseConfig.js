@@ -1,11 +1,8 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+import { Platform } from "react-native";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
   apiKey: "AIzaSyA3zgj_rKAsDXJyxhj4l8swpu39EmoCEh8",
   authDomain: "studysession-app.firebaseapp.com",
@@ -13,10 +10,25 @@ const firebaseConfig = {
   storageBucket: "studysession-app.firebasestorage.app",
   messagingSenderId: "162733594689",
   appId: "1:162733594689:web:a9fc67ac50947c8d20cec0",
-  measurementId: "G-647BQYDHNT"
+  measurementId: "G-647BQYDHNT",
 };
 
-// Initialize Firebase
 export const app = initializeApp(firebaseConfig);
-export const analytics = getAnalytics(app);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
 
+// Web-only Analytics: do not import firebase/analytics at the top level.
+// Guard against SSR so no window access happens on the server.
+export let analytics = null;
+if (Platform.OS === "web" && typeof window !== "undefined") {
+  (async () => {
+    try {
+      const { getAnalytics, isSupported } = await import("firebase/analytics");
+      if (await isSupported()) {
+        analytics = getAnalytics(app);
+      }
+    } catch {
+      // ignore analytics init errors on web
+    }
+  })();
+}

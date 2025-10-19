@@ -176,9 +176,6 @@ const EmptyState = () => (
 
 //MAIN COMPONENT: StudySessionsScreen
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const LIST_WIDTH = SCREEN_WIDTH * 0.75; 
-
 const StudySessionsScreen = () => {
     const [sessions, setSessions] = useState<StudySession[]>([]);
     const [loading, setLoading] = useState(true);
@@ -255,7 +252,7 @@ const StudySessionsScreen = () => {
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={[styles.loadingContainer, { width: LIST_WIDTH }]}>
+                <View style={[styles.loadingContainer, { width: '100%' }]}>
                     <ActivityIndicator size="large" color="#3B82F6" />
                     <Text style={styles.loadingText}>Loading sessions...</Text>
                 </View>
@@ -266,7 +263,7 @@ const StudySessionsScreen = () => {
     if (error) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={[styles.loadingContainer, { width: LIST_WIDTH }]}>
+                <View style={[styles.loadingContainer, { width: '100%' }]}>
                     <Ionicons name="warning-outline" size={32} color="#EF4444" />
                     <Text style={styles.errorText}>Error: {error}</Text>
                     <Text style={styles.errorTextSmall}>Check console or Firebase rules.</Text>
@@ -277,7 +274,7 @@ const StudySessionsScreen = () => {
     
     return (
         <SafeAreaView style={styles.container}>
-            <View style={[styles.listFrame, { width: LIST_WIDTH }]}>
+            <View style={styles.listFrame}>
                 <ScrollView 
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={true}
@@ -296,9 +293,6 @@ const StudySessionsScreen = () => {
                 </ScrollView>
             </View>
             
-            <View style={styles.rightSideSpace}>
-                <Text style={styles.rightSideText}>Controls/Filters Here (25%)</Text>
-            </View>
         </SafeAreaView>
     );
 };
@@ -314,20 +308,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#F9FAFB',
     },
     listFrame: {
-        height: '100%',
-    },
-    rightSideSpace: {
-        flex: 1, 
-        height: '100%',
-        backgroundColor: '#E5E7EB', 
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 10,
-    },
-    rightSideText: {
-        fontSize: 14,
-        color: '#6B7280',
-        transform: [{ rotate: '90deg' }], 
+        flex: 1,
+        width: '100%',
+        alignSelf: 'stretch',
     },
     scrollContent: {
         paddingTop: 16,
