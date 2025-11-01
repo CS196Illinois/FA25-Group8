@@ -5,7 +5,6 @@ import {
     StyleSheet, 
     SafeAreaView, 
     ScrollView, 
-    Dimensions, 
     TouchableOpacity, 
     ActivityIndicator,
     Linking,
@@ -14,11 +13,9 @@ import {
 import { Ionicons } from '@expo/vector-icons'; 
 
 //FIREBASE IMPORTS
-
-import { app } from '../firebaseConfig'; 
+import { FIREBASE_APP } from '../firebaseConfig'; 
 import { 
-    getAuth, 
-    signInAnonymously
+    getAuth
 } from 'firebase/auth';
 import { 
     getFirestore, 
@@ -30,13 +27,14 @@ import {
     Timestamp 
 } from 'firebase/firestore';
 
-//INTERFACES
+//CONTEXT
+import { useAuth } from './contexts/AuthContext';
 
+//INTERFACES
 interface LocationCoords {
     latitude: number;
     longitude: number;
 }
-
 
 interface StudySession {
     id: string; 
@@ -57,18 +55,15 @@ interface StudySession {
 }
 
 //DATA & MAP UTILITIES
-
 const formatTime = (date: Date | null | undefined): string => {
     if (!date) return 'TBD';
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
 };
 
-
 const formatDate = (date: Date | null | undefined): string => {
     if (!date) return 'Date TBD';
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
-
 
 const openGoogleMaps = (coords: LocationCoords) => {
     const { latitude, longitude } = coords;
@@ -88,8 +83,6 @@ const openGoogleMaps = (coords: LocationCoords) => {
 };
 
 //REUSABLE COMPONENTS
-
-
 const DetailRow: React.FC<{ iconName: string, label: string, value: string | number }> = ({ iconName, label, value }) => (
     <View style={styles.detailRow}>
         <Ionicons name={iconName as any} size={20} color="#3B82F6" style={styles.detailIcon} />
@@ -97,7 +90,6 @@ const DetailRow: React.FC<{ iconName: string, label: string, value: string | num
         <Text style={styles.detailValue} numberOfLines={1}>{value}</Text>
     </View>
 );
-
 
 const MapExcerpt: React.FC<{ locationName: string, coords: LocationCoords }> = ({ locationName, coords }) => (
     <TouchableOpacity 
@@ -111,7 +103,6 @@ const MapExcerpt: React.FC<{ locationName: string, coords: LocationCoords }> = (
         </View>
     </TouchableOpacity>
 );
-
 
 const SessionCard: React.FC<{ session: StudySession }> = ({ session }) => {
     const numAttendees = session.attendees.length;
@@ -160,7 +151,6 @@ const SessionCard: React.FC<{ session: StudySession }> = ({ session }) => {
                 )}
             </View>
             <MapExcerpt locationName={session.locationName} coords={session.locationCoords} />
-
         </View>
     );
 };
@@ -173,24 +163,27 @@ const EmptyState = () => (
     </View>
 );
 
-
 //MAIN COMPONENT: StudySessionsScreen
-
 const StudySessionsScreen = () => {
     const [sessions, setSessions] = useState<StudySession[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    
+    const { user, logOut } = useAuth();
 
     useEffect(() => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
         let unsubscribe: (() => void) | undefined;
 
         const connectToFirebase = async () => {
             try {
-                const auth = getAuth(app);
-                const db = getFirestore(app);
+                const auth = getAuth(FIREBASE_APP);
+                const db = getFirestore(FIREBASE_APP);
                 setLogLevel('debug');
-                
-                await signInAnonymously(auth);
                 
                 const sessionsPath = "sessions";
                 const sessionsCollectionRef = collection(db, sessionsPath);
@@ -245,10 +238,17 @@ const StudySessionsScreen = () => {
                 unsubscribe();
             }
         };
-    }, []);
+    }, [user]);
+
+    const handleLogout = async () => {
+        try {
+            await logOut();
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    };
 
     //RENDER LOGIC
-
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
@@ -275,11 +275,19 @@ const StudySessionsScreen = () => {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.listFrame}>
+                <View style={styles.header}>
+                    <Text style={styles.listTitle}>Upcoming Study Sessions</Text>
+                    <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                        <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+                    </TouchableOpacity>
+                </View>
                 <ScrollView 
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={true}
                 >
-                    <Text style={styles.listTitle}>Upcoming Study Sessions</Text>
+                    {user && (
+                        <Text style={styles.welcomeText}>Welcome, {user.displayName || user.email}!</Text>
+                    )}
                     
                     {sessions.length > 0 ? (
                         sessions.map(session => (
@@ -292,7 +300,6 @@ const StudySessionsScreen = () => {
                     <View style={{ height: 40 }} /> 
                 </ScrollView>
             </View>
-            
         </SafeAreaView>
     );
 };
@@ -300,7 +307,6 @@ const StudySessionsScreen = () => {
 export default StudySessionsScreen;
 
 //STYLES
-
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -312,15 +318,33 @@ const styles = StyleSheet.create({
         width: '100%',
         alignSelf: 'stretch',
     },
-    scrollContent: {
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 16,
         paddingTop: 16,
+    },
+    scrollContent: {
+        paddingTop: 8,
         paddingHorizontal: 16,
     },
     listTitle: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: '#1F2937', 
+        color: '#1F2937',
+    },
+    welcomeText: {
+        fontSize: 16,
+        color: '#6B7280',
         marginBottom: 16,
+    },
+    logoutButton: {
+        padding: 8,
+        backgroundColor: '#FEE2E2',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#EF4444',
     },
     card: {
         backgroundColor: 'white',
@@ -467,4 +491,3 @@ const styles = StyleSheet.create({
         textAlign: 'center',
     }
 });
-
