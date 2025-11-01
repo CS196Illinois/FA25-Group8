@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { app } from '../firebaseConfig';
+import { useAuth } from './contexts/AuthContext';
 
-export default function LoginScreen({ navigation }: any) {
+export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const { signIn, signUp } = useAuth();
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -16,13 +17,22 @@ export default function LoginScreen({ navigation }: any) {
       return;
     }
     setLoading(true);
-    const auth = getAuth(app);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      navigation.replace('studysessions'); // Assuming 'studysessions' is your main screen
+      await signIn(email, password);
+      // Navigation will be handled automatically by auth state in _layout
     } catch (error: any) {
-      Alert.alert('Login Failed', error.message);
+      let errorMessage = 'Login failed';
+      if (error.code === 'auth/invalid-credential') {
+        errorMessage = 'Invalid email or password';
+      } else if (error.code === 'auth/user-not-found') {
+        errorMessage = 'No account found with this email';
+      } else if (error.code === 'auth/wrong-password') {
+        errorMessage = 'Incorrect password';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address';
+      }
+      Alert.alert('Login Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -33,15 +43,28 @@ export default function LoginScreen({ navigation }: any) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
+      return;
+    }
+
     setLoading(true);
-    const auth = getAuth(app);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(userCredential.user, { displayName });
-      navigation.replace('studysessions');
+      await signUp(email, password, displayName);
+      Alert.alert('Success', 'Account created successfully!');
+      // Navigation will be handled automatically by auth state in _layout
     } catch (error: any) {
-      Alert.alert('Sign Up Failed', error.message);
+      let errorMessage = 'Failed to create account';
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = 'This email is already registered';
+      } else if (error.code === 'auth/invalid-email') {
+        errorMessage = 'Invalid email address';
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = 'Password is too weak';
+      }
+      Alert.alert('Sign Up Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -68,6 +91,7 @@ export default function LoginScreen({ navigation }: any) {
           onChangeText={setEmail}
           autoCapitalize="none"
           keyboardType="email-address"
+          autoComplete="email"
         />
         <TextInput
           style={styles.input}
@@ -75,12 +99,23 @@ export default function LoginScreen({ navigation }: any) {
           value={password}
           onChangeText={setPassword}
           secureTextEntry
+          autoComplete="password"
         />
-        <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={isSignUp ? handleSignUp : handleLogin} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{isSignUp ? 'Sign Up' : 'Login'}</Text>}
+        <TouchableOpacity 
+          style={[styles.button, loading && styles.buttonDisabled]} 
+          onPress={isSignUp ? handleSignUp : handleLogin} 
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>{isSignUp ? 'Sign Up' : 'Login'}</Text>
+          )}
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
-          <Text style={styles.toggleText}>{isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}</Text>
+          <Text style={styles.toggleText}>
+            {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
+          </Text>
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -89,32 +124,66 @@ export default function LoginScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1, backgroundColor: '#F9FAFB', justifyContent: 'center', alignItems: 'center'
+    flex: 1, 
+    backgroundColor: '#F9FAFB', 
+    justifyContent: 'center', 
+    alignItems: 'center'
   },
   formContainer: {
-    width: '85%', maxWidth: 400, backgroundColor: 'white', borderRadius: 12, padding: 24,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 5
+    width: '85%', 
+    maxWidth: 400, 
+    backgroundColor: 'white', 
+    borderRadius: 12, 
+    padding: 24,
+    shadowColor: '#000', 
+    shadowOffset: { width: 0, height: 2 }, 
+    shadowOpacity: 0.1, 
+    shadowRadius: 8, 
+    elevation: 5
   },
   title: {
-    fontSize: 32, fontWeight: 'bold', color: '#3B82F6', textAlign: 'center', marginBottom: 8
+    fontSize: 32, 
+    fontWeight: 'bold', 
+    color: '#3B82F6', 
+    textAlign: 'center', 
+    marginBottom: 8
   },
   subtitle: {
-    fontSize: 18, color: '#6B7280', textAlign: 'center', marginBottom: 24
+    fontSize: 18, 
+    color: '#6B7280', 
+    textAlign: 'center', 
+    marginBottom: 24
   },
   input: {
-    height: 50, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8,
-    paddingHorizontal: 16, marginBottom: 16, fontSize: 16, backgroundColor: '#F9FAFB'
+    height: 50, 
+    borderWidth: 1, 
+    borderColor: '#E5E7EB', 
+    borderRadius: 8,
+    paddingHorizontal: 16, 
+    marginBottom: 16, 
+    fontSize: 16, 
+    backgroundColor: '#F9FAFB'
   },
   button: {
-    backgroundColor: '#3B82F6', height: 50, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginTop: 8
+    backgroundColor: '#3B82F6', 
+    height: 50, 
+    borderRadius: 8, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    marginTop: 8
   },
   buttonDisabled: {
     backgroundColor: '#9CA3AF'
   },
   buttonText: {
-    color: 'white', fontSize: 16, fontWeight: '600'
+    color: 'white', 
+    fontSize: 16, 
+    fontWeight: '600'
   },
   toggleText: {
-    color: '#3B82F6', textAlign: 'center', marginTop: 16, fontSize: 14
+    color: '#3B82F6', 
+    textAlign: 'center', 
+    marginTop: 16, 
+    fontSize: 14
   }
 });

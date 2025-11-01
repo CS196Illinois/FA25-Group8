@@ -13,9 +13,9 @@ const firebaseConfig = {
   measurementId: "G-647BQYDHNT",
 };
 
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const FIREBASE_APP = initializeApp(firebaseConfig);
+export const FIREBASE_AUTH = getAuth(FIREBASE_APP);
+export const FIRESTORE_DB = getFirestore(FIREBASE_APP);
 
 // Web-only Analytics: do not import firebase/analytics at the top level.
 // Guard against SSR so no window access happens on the server.
@@ -25,7 +25,7 @@ if (Platform.OS === "web" && typeof window !== "undefined") {
     try {
       const { getAnalytics, isSupported } = await import("firebase/analytics");
       if (await isSupported()) {
-        analytics = getAnalytics(app);
+        analytics = getAnalytics(FIREBASE_APP); // Fixed: was 'app'
       }
     } catch {
       // ignore analytics init errors on web
