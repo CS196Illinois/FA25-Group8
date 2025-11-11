@@ -1,38 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  ScrollView, 
-  TouchableOpacity, 
-  ActivityIndicator,
-  Linking,
-  Platform,
-  Modal,
-  TextInput,
-  Pressable,
-  KeyboardAvoidingView,
-  Dimensions,
-  Alert
+    View, 
+    Text, 
+    StyleSheet, 
+    SafeAreaView, 
+    ScrollView, 
+    TouchableOpacity, 
+    ActivityIndicator,
+    Linking,
+    Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; 
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 // FIREBASE IMPORTS
 import { FIREBASE_APP } from '../firebaseConfig'; 
 import { getAuth } from 'firebase/auth';
 import { 
-  getFirestore, 
-  collection, 
-  onSnapshot, 
-  query,
-  DocumentData,
-  setLogLevel,
-  Timestamp,
-  addDoc,
-  serverTimestamp
+    getFirestore, 
+    collection, 
+    onSnapshot, 
+    query,
+    DocumentData,
+    setLogLevel,
+    Timestamp 
 } from 'firebase/firestore';
 
 // CONTEXT
@@ -88,31 +78,6 @@ const buildGoogleCalUrl = (s: {
 interface LocationCoords {
   latitude: number;
   longitude: number;
-}
-
-// Firestore write shape for new sessions
-interface StudySessionFirestore {
-  creatorId: string;
-  creatorName: string;
-  course: string;
-  topic: string;
-  locationName: string;
-  locationDetails?: string;
-  locationCoords: LocationCoords;
-  startTime: Timestamp;
-  endTime?: Timestamp | null;
-  signupPolicy: 'required' | 'preferred' | 'open';
-  capacity?: number;
-  attendees: string[];
-  isFull: boolean;
-  createdAt?: Timestamp;
-}
-
-// Selected location state for the creation form
-interface SelectedLocation {
-  name: string;
-  coords: LocationCoords | null;
-  details?: string;
 }
 
 interface StudySession {
@@ -281,182 +246,11 @@ const EmptyState = () => (
   </View>
 );
 
-/* AI-ASSISTED
-   Source/Tool: GitHub Copilot (Chat)
-   Author/Reviewer: <Elias Ghanayem>
-   Date: 2025-11-11
-   Why AI: Implement session creation UI and Firestore write flow quickly with clear validation and comments.
-   Notes: Tested by creating a session and confirming it appears via onSnapshot.
-*/
-const MODAL_HEIGHT = Dimensions.get('window').height * 0.9;
-
-const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = ({ visible, onClose }) => {
-  const { user } = useAuth();
-  const [course, setCourse] = useState('');
-  const [topic, setTopic] = useState('');
-  const [location, setLocation] = useState<SelectedLocation | null>(null);
-  const [locationDetails, setLocationDetails] = useState('');
-  const [startTime, setStartTime] = useState(new Date());
-  const [showDateTimePicker, setShowDateTimePicker] = useState(false);
-  const [capacity, setCapacity] = useState('');
-  const [signupPolicy, setSignupPolicy] = useState<'required' | 'preferred' | 'open'>('open');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [placesFailed, setPlacesFailed] = useState(false); // Fallback if Places API not available
-
-  const onDateTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    setShowDateTimePicker(Platform.OS === 'ios');
-    if (selectedDate) {
-      setStartTime(selectedDate);
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!user) {
-      Alert.alert('Error', 'You must be logged in to create a session.');
-      return;
-    }
-    // Accept manual location name even if coords missing (fallback when Places fails)
-    if (!course.trim() || !topic.trim() || !location || !location.name.trim()) {
-      Alert.alert('Missing Information', 'Please fill out Course, Topic, and Location name.');
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const db = getFirestore(FIREBASE_APP);
-      const sessionsCollectionRef = collection(db, 'sessions');
-
-      const newSession: Omit<StudySessionFirestore, 'createdAt'> = {
-        creatorId: user.uid,
-        creatorName: user.displayName || user.email || 'Anonymous',
-        course: course.trim(),
-        topic: topic.trim(),
-        locationName: location.name,
-        locationDetails: locationDetails.trim() || undefined,
-        locationCoords: location.coords ?? { latitude: 0, longitude: 0 }, // fallback coords if Places failed
-        startTime: Timestamp.fromDate(startTime),
-        endTime: null,
-        signupPolicy,
-        capacity: capacity ? parseInt(capacity, 10) : undefined,
-        attendees: [user.uid],
-        isFull: false,
-      };
-
-      await addDoc(sessionsCollectionRef, {
-        ...newSession,
-        createdAt: serverTimestamp(),
-      });
-      console.log('Created session payload:', newSession);
-
-      Alert.alert('Success!', 'Your study session has been created.');
-      setIsSubmitting(false);
-      onClose();
-      // reset form
-      setCourse('');
-      setTopic('');
-      setLocation(null);
-      setLocationDetails('');
-      setStartTime(new Date());
-      setCapacity('');
-    } catch (error) {
-      console.error('Error creating session:', error);
-      Alert.alert('Error', 'Could not create the session. Please try again.');
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBackdrop}>
-        <Pressable style={styles.modalBackdrop} onPress={onClose} />
-        <View style={[styles.modalContent, { height: MODAL_HEIGHT }]}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>New Study Session</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close-circle" size={30} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView style={styles.formScrollView} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps='handled' nestedScrollEnabled>
-            <Text style={styles.label}>Course</Text>
-            <TextInput style={styles.input} placeholder="e.g., CS 124" value={course} onChangeText={setCourse} />
-
-            <Text style={styles.label}>Topic</Text>
-            <TextInput style={styles.input} placeholder="e.g., Midterm 1 Prep" value={topic} onChangeText={setTopic} />
-
-            <Text style={styles.label}>Location</Text>
-            <GooglePlacesAutocomplete
-              placeholder="Search for a location"
-              minLength={2}
-              fetchDetails
-              onFail={(e) => console.error('GooglePlaces error:', e)}
-              onNotFound={() => console.log('No places results')}
-              predefinedPlaces={[]}
-              textInputProps={{
-                onFocus: () => {},
-                onBlur: () => {},
-                returnKeyType: 'search',
-                placeholderTextColor: '#9CA3AF',
-                onChangeText: (text: string) => {
-                  // Manual fallback so user input counts even if Places API fails
-                  setLocation({ name: text, coords: location?.coords ?? null });
-                }
-              }}
-              onPress={(data: any, details: any | null = null) => {
-                // data: place summary, details: full place detail when fetchDetails=true
-                const { lat, lng } = details?.geometry?.location || {};
-                setLocation({
-                  name: data?.description,
-                  coords: lat && lng ? { latitude: lat, longitude: lng } : null,
-                });
-              }}
-              query={{
-                // TODO: Move API key to config/env and do not commit secrets
-                key: 'AIzaSyCSpOvxSXhquORKm4TJQvj1tMC3KpRBm4I',
-                language: 'en',
-              }}
-              requestUrl={{
-                useOnPlatform: 'web',
-                url: 'https://maps.googleapis.com/maps/api',
-              }}
-              styles={{ container: styles.googlePlacesContainer, textInput: styles.input, listView: styles.googlePlacesListView }}
-            />
-            {placesFailed && (
-              <Text style={{ color: '#EF4444', marginTop: 4, fontSize: 12 }}>
-                Places API unavailable; manual location name will be saved with default (0,0) coords.
-              </Text>
-            )}
-
-            <Text style={styles.label}>Location Details (Optional)</Text>
-            <TextInput style={styles.input} placeholder="e.g., Room 12, Main Library" value={locationDetails} onChangeText={setLocationDetails} />
-
-            <Text style={styles.label}>Start Time</Text>
-            <TouchableOpacity onPress={() => setShowDateTimePicker(true)} style={styles.dateTimePickerButton}>
-              <Text style={styles.dateTimePickerText}>{`${formatDate(startTime)} at ${formatTime(startTime)}`}</Text>
-            </TouchableOpacity>
-            {showDateTimePicker && (
-              <DateTimePicker testID="dateTimePicker" value={startTime} mode="datetime" is24Hour={false} display="default" onChange={onDateTimeChange} />
-            )}
-
-            <Text style={styles.label}>Capacity (Optional)</Text>
-            <TextInput style={styles.input} placeholder="e.g., 10" value={capacity} onChangeText={setCapacity} keyboardType="number-pad" />
-
-            <TouchableOpacity style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} onPress={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitButtonText}>Create Session</Text>}
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-};
-
 // MAIN COMPONENT: StudySessionsScreen
 const StudySessionsScreen = () => {
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isModalVisible, setIsModalVisible] = useState(false);
   
   const { user, logOut } = useAuth();
 
@@ -563,7 +357,6 @@ const StudySessionsScreen = () => {
   
   return (
     <SafeAreaView style={styles.container}>
-      <CreateSessionModal visible={isModalVisible} onClose={() => setIsModalVisible(false)} />
       <View style={styles.listFrame}>
         <View style={styles.header}>
           <Text style={styles.listTitle}>Upcoming Study Sessions</Text>
@@ -590,10 +383,6 @@ const StudySessionsScreen = () => {
           <View style={{ height: 40 }} /> 
         </ScrollView>
       </View>
-      {/* Floating action button to create a session */}
-      <TouchableOpacity style={styles.fab} onPress={() => setIsModalVisible(true)} activeOpacity={0.8}>
-        <Ionicons name="add" size={32} color="white" />
-      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -783,108 +572,5 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginTop: 4,
     textAlign: 'center',
-  },
-  // New styles for creation modal and FAB
-  fab: {
-    position: 'absolute',
-    bottom: 30,
-    right: 20,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#3B82F6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#1F2937',
-  },
-  closeButton: {
-    padding: 5,
-  },
-  formScrollView: {
-    flex: 1,
-    marginTop: 10,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  input: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    color: '#1F2937',
-  },
-  googlePlacesContainer: {
-    flex: 1,
-  },
-  googlePlacesListView: {
-    backgroundColor: 'white',
-    borderColor: '#D1D5DB',
-    borderWidth: 1,
-    borderRadius: 8,
-    marginTop: 2,
-  },
-  dateTimePickerButton: {
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#D1D5DB',
-    borderRadius: 8,
-    padding: 12,
-    alignItems: 'center',
-  },
-  dateTimePickerText: {
-    fontSize: 16,
-    color: '#3B82F6',
-    fontWeight: '600',
-  },
-  submitButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 8,
-    padding: 15,
-    alignItems: 'center',
-    marginTop: 24,
-    marginBottom: 40,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-  },
-  submitButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+  }
 });
