@@ -17,14 +17,16 @@ import { FIREBASE_APP } from '../firebaseConfig';
 import { 
     getAuth
 } from 'firebase/auth';
-import { 
-    getFirestore, 
-    collection, 
-    onSnapshot, 
+import {
+    getFirestore,
+    collection,
+    onSnapshot,
     query,
     DocumentData,
     setLogLevel,
-    Timestamp 
+    Timestamp,
+    doc,           // Gets a reference to a specific document
+    runTransaction // Safely updates data with consistency checks
 } from 'firebase/firestore';
 
 //CONTEXT
@@ -104,13 +106,13 @@ const MapExcerpt: React.FC<{ locationName: string, coords: LocationCoords }> = (
     </TouchableOpacity>
 );
 
-const SessionCard: React.FC<{ session: StudySession }> = ({ session }) => {
+const SessionCard: React.FC<{ session: StudySession; currentUserId: string | undefined; onJoin: (sessionId: string) => void; onLeave: (sessionId: string) => void;}> = ({ session, currentUserId, onJoin, onLeave }) => {
     const numAttendees = session.attendees.length;
     const timeStart = formatTime(session.startTime);
     const timeEnd = formatTime(session.endTime);
     const date = formatDate(session.startTime);
     const timeRange = `${timeStart} - ${session.endTime ? timeEnd : 'Ongoing'}`;
-
+    const isUserJoined = currentUserId ? session.attendees.includes(currentUserId) : false;
     const policyText = session.signupPolicy.charAt(0).toUpperCase() + session.signupPolicy.slice(1) + ' Sign-up';
     const attendeeCountText = session.capacity 
         ? `${numAttendees} / ${session.capacity} Attending` 
@@ -151,6 +153,18 @@ const SessionCard: React.FC<{ session: StudySession }> = ({ session }) => {
                 )}
             </View>
             <MapExcerpt locationName={session.locationName} coords={session.locationCoords} />
+            <TouchableOpacity
+                style={[styles.joinButton, isUserJoined && { backgroundColor: '#10B981' },  // Green when joined
+                (session.isFull && !isUserJoined) && { backgroundColor: '#EF4444' }  // Red when full
+                ]}
+                onPress = {() => isUserJoined ? onLeave(session.id) : onJoin(session.id)}
+                disabled = {session.isFull && !isUserJoined}
+            >
+                <Text style = {styles.joinButtonText}>
+                    {isUserJoined ? 'Leave Session' : (session.isFull ? 'Session Full' : 'Join Session')}
+                </Text>
+
+            </TouchableOpacity>
         </View>
     );
 };
@@ -248,6 +262,142 @@ const StudySessionsScreen = () => {
         }
     };
 
+    // ============ SESSION JOIN/LEAVE FUNCTIONS ============
+
+    // JOIN SESSION FUNCTION
+    // This function adds the current user to a study session's attendee list
+    const handleJoinSession = async (sessionId: string) => {
+        // Safety check: Make sure we have a logged-in user
+        if (!user) {
+            alert('You must be logged in to join a session');
+            return;
+        }
+
+        try {
+            // Get a reference to the Firestore database
+            const db = getFirestore(FIREBASE_APP);
+            // Get a reference to the specific session document we want to update
+            const sessionRef = doc(db, 'sessions', sessionId);
+
+            // runTransaction ensures data consistency (prevents race conditions)
+            // It works like this:
+            // 1. Read the current data
+            // 2. Make changes based on that data
+            // 3. Only save if the data hasn't changed since step 1
+            await runTransaction(db, async (transaction) => {
+                // Step 1: Read the current session data
+                const sessionDoc = await transaction.get(sessionRef);
+
+                // Check if the session exists
+                if (!sessionDoc.exists()) {
+                    throw new Error('Session does not exist');
+                }
+
+                // Get the current data from the document
+                const sessionData = sessionDoc.data();
+                const currentAttendees = sessionData.attendees || [];
+                const capacity = sessionData.capacity;
+
+                // VALIDATION CHECKS
+
+                // Check 1: Is the user already in this session?
+                if (currentAttendees.includes(user.uid)) {
+                    throw new Error('You are already in this session');
+                }
+
+                // Check 2: Is the session full?
+                // (Only if capacity is defined)
+                if (capacity && currentAttendees.length >= capacity) {
+                    throw new Error('Session is full');
+                }
+
+                // Step 2: Update the session
+                // Add the user's ID to the attendees array
+                const newAttendees = [...currentAttendees, user.uid];
+
+                // Check if session should now be marked as full
+                const isFull = capacity ? newAttendees.length >= capacity : false;
+
+                // Step 3: Save the changes to Firestore
+                transaction.update(sessionRef, {
+                    attendees: newAttendees,
+                    isFull: isFull
+                });
+            });
+
+            // Success! Show a message to the user
+            alert('Joined!');
+
+        } catch (error) {
+            // If anything goes wrong, show the error message
+            console.error('Error joining session:', error);
+            alert(error instanceof Error ? error.message : 'Failed to join session');
+        }
+    };
+
+    // LEAVE SESSION FUNCTION
+    // TODO: Implement this function yourself! (Done by Aryan)
+    // This should remove the current user from the attendees array
+    const handleLeaveSession = async (sessionId: string) => {
+        // TODO: Check if user is logged in (similar to handleJoinSession)
+        if (!user) {
+            alert("You must be logged in to leave a session!")
+            return;
+        }
+        try {
+            // TODO: Get database reference (const db = ...)
+            const db = getFirestore(FIREBASE_APP)
+            // TODO: Get session document reference (const sessionRef = ...)
+            const sessionRef = doc(db, 'sessions', sessionId);
+            // TODO: Use runTransaction to safely update the data
+            // Inside the transaction:
+            //   1. Get the current session document
+            //   2. Get the current attendees array
+            //   3. Check if the user is actually in the session
+            //   4. Remove the user's ID from the attendees array
+            //      Hint: Use .filter() to create a new array without user.uid
+            //   5. Update the document with new attendees and set isFull to false
+            await runTransaction(db, async (transaction) => {
+                const sessionDoc = await transaction.get(sessionRef);
+
+                if (!sessionDoc.exists()) {
+                    throw new Error('Session does not exist');
+                }
+
+                // Get the current data from the document
+                const sessionData = sessionDoc.data();
+                const currentAttendees = sessionData.attendees || [];
+                const capacity = sessionData.capacity;
+
+                // VALIDATION CHECKS
+
+                // Check 1: Is the user actually IN this session?
+                if (!(currentAttendees.includes(user.uid))) {
+                    throw new Error('Error: You are not in this session');
+                }
+
+                const newAttendees = currentAttendees.filter(removeUser);
+
+                function removeUser(attendee) {
+                    return attendee !== user.uid;
+                }
+
+
+                // Step 3: Save the changes to Firestore
+                transaction.update(sessionRef, {
+                    attendees: newAttendees,
+                    isFull: false
+                });
+            });
+            // TODO: Show success message
+            alert('Left!');
+
+        } catch (error) {
+            console.error('Error leaving session:', error);
+            alert(error instanceof Error ? error.message : 'Failed to leave session');
+        }
+    };
+
     //RENDER LOGIC
     if (loading) {
         return (
@@ -291,7 +441,13 @@ const StudySessionsScreen = () => {
                     
                     {sessions.length > 0 ? (
                         sessions.map(session => (
-                            <SessionCard key={session.id} session={session} />
+                            <SessionCard 
+                            key={session.id} 
+                            session={session} 
+                            currentUserId = {user?.uid} 
+                            onJoin={handleJoinSession}
+                            onLeave={handleLeaveSession}
+                            />
                         ))
                     ) : (
                         <EmptyState />
@@ -489,5 +645,17 @@ const styles = StyleSheet.create({
         color: '#9CA3AF',
         marginTop: 4,
         textAlign: 'center',
+    },
+    joinButton: {
+      backgroundColor: '#3B82F6',  // Blue color
+      padding: 12,
+      borderRadius: 8,
+      alignItems: 'center',
+      marginTop: 10,
+    },
+    joinButtonText: {
+      color: 'white',
+      fontWeight: '600',
+      fontSize: 16,
     }
 });

@@ -23,8 +23,8 @@ async function seed() {
       startTime: admin.firestore.Timestamp.fromDate(new Date('2025-10-21T23:00:00Z')),
       endTime: admin.firestore.Timestamp.fromDate(new Date('2025-10-22T00:15:00Z')),
       signupPolicy: 'preferred',
-      capacity: 15,
-      attendees: [],
+      capacity: 3,  // Changed to 3 for testing
+      attendees: ['fake-user-1'],  // Pre-filled with 1 fake user
       isFull: false,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     },
@@ -39,9 +39,9 @@ async function seed() {
       startTime: admin.firestore.Timestamp.fromDate(new Date('2025-10-22T22:30:00Z')),
       endTime: admin.firestore.Timestamp.fromDate(new Date('2025-10-23T00:00:00Z')),
       signupPolicy: 'required',
-      capacity: 12,
-      attendees: [],
-      isFull: false,
+      capacity: 2,  // Changed to 2 for testing
+      attendees: ['fake-user-1', 'fake-user-2'],  // Completely full
+      isFull: true,  // Mark as full
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     {
