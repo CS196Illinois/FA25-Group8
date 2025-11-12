@@ -15,7 +15,7 @@ import {
   KeyboardAvoidingView,
   Dimensions,
   Alert,
-  Switch  // Toggle switch for "My Sessions" filter
+  // NOTE: Switch removed (no filter toggle in search-only UI)
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons'; 
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
@@ -493,27 +493,13 @@ const StudySessionsScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   
-  /* ============ SEARCH & FILTER STATE ============
-     AI-ASSISTED
-     Source/Tool: GitHub Copilot + Claude (Elias Ghanayem)
-     Date: 2025-11-12
-     Why AI: To implement a comprehensive filter system quickly with clear variable naming
-     
-     TEACHING NOTES for 2-3 minute walkthrough:
-     - searchText: Filters sessions by course name (e.g., "CS 124")
-     - selectedDay: Filter by day of week (e.g., "Monday", "All Days")
-     - startTimeFilter/endTimeFilter: Filter sessions happening within a time range
-     - showMySessionsOnly: Toggle to show only sessions the current user joined
-     
-     These are just React state variables - when they change, the UI re-renders with filtered results.
-  */
+  /* AI-ASSISTED
+    Source/Tool: GitHub Copilot (Chat)
+    Author/Reviewer: Elias Ghanayem
+    Date: 2025-11-12
+    Why AI: Implemented a simple, flexible search state and matcher quickly.
+    Policy note: Comments are concise and policy-compliant (no long teaching notes). */
   const [searchText, setSearchText] = useState('');
-  const [selectedDay, setSelectedDay] = useState<string>('All Days');
-  const [startTimeFilter, setStartTimeFilter] = useState<Date | null>(null);
-  const [endTimeFilter, setEndTimeFilter] = useState<Date | null>(null);
-  const [showMySessionsOnly, setShowMySessionsOnly] = useState(false);
-  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
-  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   
   const { user, logOut } = useAuth();
 
@@ -586,75 +572,17 @@ const StudySessionsScreen = () => {
     };
   }, [user]);
 
-  /* ============ FILTER LOGIC FUNCTION ============
-     AI-ASSISTED
-     Source/Tool: GitHub Copilot + Claude (Elias Ghanayem)
+  /* AI-ASSISTED
+     Source/Tool: GitHub Copilot (Chat)
+     Author/Reviewer: Elias Ghanayem
      Date: 2025-11-12
-     Why AI: To implement multi-criteria filtering with clear step-by-step logic
-     
-     This function takes ALL sessions from Firestore and filters them based on user's choices.
-     
-     HOW IT WORKS (step-by-step):
-     1. Start with all sessions
-     2. Filter by search text (case-insensitive match on course name)
-     3. Filter by day of week (e.g., only show Monday sessions)
-     4. Filter by start time range (sessions starting after a chosen time)
-     5. Filter by end time range (sessions ending before a chosen time)
-     6. Filter by "My Sessions" toggle (only show sessions user joined)
-     
-     Each filter is applied sequentially using .filter() which keeps only items that match.
-     The filtered array is then displayed in the UI.
-  */
-  const getFilteredSessions = (): StudySession[] => {
-    let filtered = [...sessions]; // Start with a copy of all sessions
-
-    // FILTER 1: Search by course name (e.g., "CS 124", "MATH 231")
-    // .toLowerCase() makes it case-insensitive so "cs 124" matches "CS 124"
-    if (searchText.trim()) {
-      filtered = filtered.filter(session =>
-        session.course.toLowerCase().includes(searchText.toLowerCase())
-      );
-    }
-
-    // FILTER 2: Filter by day of week (e.g., "Monday", "Tuesday")
-    // getDay() returns 0=Sunday, 1=Monday, ..., 6=Saturday
-    if (selectedDay !== 'All Days') {
-      const dayMap: { [key: string]: number } = {
-        'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3,
-        'Thursday': 4, 'Friday': 5, 'Saturday': 6
-      };
-      const targetDay = dayMap[selectedDay];
-      filtered = filtered.filter(session => session.startTime.getDay() === targetDay);
-    }
-
-    // FILTER 3: Filter by start time (sessions starting AFTER this time)
-    // Example: If user selects 2:00 PM, only show sessions starting at 2 PM or later
-    if (startTimeFilter) {
-      filtered = filtered.filter(session => {
-        const sessionTime = session.startTime.getHours() * 60 + session.startTime.getMinutes();
-        const filterTime = startTimeFilter.getHours() * 60 + startTimeFilter.getMinutes();
-        return sessionTime >= filterTime;
-      });
-    }
-
-    // FILTER 4: Filter by end time (sessions ending BEFORE this time)
-    // Example: If user selects 5:00 PM, only show sessions ending by 5 PM
-    if (endTimeFilter) {
-      filtered = filtered.filter(session => {
-        if (!session.endTime) return true; // Include sessions with no end time
-        const sessionTime = session.endTime.getHours() * 60 + session.endTime.getMinutes();
-        const filterTime = endTimeFilter.getHours() * 60 + endTimeFilter.getMinutes();
-        return sessionTime <= filterTime;
-      });
-    }
-
-    // FILTER 5: "My Sessions" toggle - show only sessions the current user joined
-    // session.attendees is an array of user IDs, so we check if current user's ID is in it
-    if (showMySessionsOnly && user) {
-      filtered = filtered.filter(session => session.attendees.includes(user.uid));
-    }
-
-    return filtered; // Return the final filtered list
+     Why AI: Implement flexible, spacing/case-insensitive search quickly.
+     Matching rule: normalize both strings (remove non-alphanumerics, uppercase) and use includes(). */
+  const normalize = (s: string) => s.replace(/[^a-z0-9]/gi, '').toUpperCase();
+  const getSearchedSessions = (): StudySession[] => {
+    const q = normalize(searchText || '');
+    if (!q) return sessions;
+    return sessions.filter(s => normalize(s.course).includes(q));
   };
 
   /* ============ SESSION JOIN/LEAVE FUNCTIONS ============
@@ -830,134 +758,25 @@ const StudySessionsScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* ============ SEARCH & FILTER UI ============
-            AI-ASSISTED
-            Source/Tool: GitHub Copilot (Elias Ghanayem)
-            Date: 2025-11-12
-            
-            This section provides UI controls for users to filter sessions.
-            
-            UI COMPONENTS:
-            1. Search bar: Type course name (e.g., "CS 124")
-            2. Day picker: Dropdown to select day of week
-            3. Time range pickers: Start and end time filters
-            4. "My Sessions" toggle: Switch to show only joined sessions
-            
-            When user interacts with these, state variables update and getFilteredSessions()
-            re-runs automatically, updating what's displayed below.
-        */}
+        {/* Search Bar (search-only UI) */}
         <View style={styles.filterContainer}>
-          {/* Search Bar */}
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search by course (e.g., CS 124)"
+              placeholder="Search course (e.g., CS 124, 124, c s)"
               value={searchText}
               onChangeText={setSearchText}
               placeholderTextColor="#9CA3AF"
+              accessibilityLabel="Search by course"
             />
             {searchText.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchText('')}>
+              <TouchableOpacity onPress={() => setSearchText('')} accessibilityLabel="Clear search">
                 <Ionicons name="close-circle" size={20} color="#6B7280" />
               </TouchableOpacity>
             )}
           </View>
-
-          {/* Day of Week Filter */}
-          <View style={styles.filterRow}>
-            <Text style={styles.filterLabel}>Day:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayChipsContainer}>
-              {['All Days', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => (
-                <TouchableOpacity
-                  key={day}
-                  style={[styles.dayChip, selectedDay === day && styles.dayChipSelected]}
-                  onPress={() => setSelectedDay(day)}
-                >
-                  <Text style={[styles.dayChipText, selectedDay === day && styles.dayChipTextSelected]}>
-                    {day}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Time Range Filters */}
-          <View style={styles.timeFilterRow}>
-            {/* Start Time Filter */}
-            <View style={styles.timeFilterItem}>
-              <Text style={styles.filterLabel}>Starts After:</Text>
-              <TouchableOpacity 
-                style={styles.timeButton}
-                onPress={() => setShowStartTimePicker(true)}
-              >
-                <Ionicons name="time-outline" size={18} color="#3B82F6" />
-                <Text style={styles.timeButtonText}>
-                  {startTimeFilter ? startTimeFilter.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'Any Time'}
-                </Text>
-              </TouchableOpacity>
-              {startTimeFilter && (
-                <TouchableOpacity onPress={() => setStartTimeFilter(null)} style={styles.clearTimeButton}>
-                  <Ionicons name="close-circle" size={16} color="#EF4444" />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* End Time Filter */}
-            <View style={styles.timeFilterItem}>
-              <Text style={styles.filterLabel}>Ends Before:</Text>
-              <TouchableOpacity 
-                style={styles.timeButton}
-                onPress={() => setShowEndTimePicker(true)}
-              >
-                <Ionicons name="time-outline" size={18} color="#3B82F6" />
-                <Text style={styles.timeButtonText}>
-                  {endTimeFilter ? endTimeFilter.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : 'Any Time'}
-                </Text>
-              </TouchableOpacity>
-              {endTimeFilter && (
-                <TouchableOpacity onPress={() => setEndTimeFilter(null)} style={styles.clearTimeButton}>
-                  <Ionicons name="close-circle" size={16} color="#EF4444" />
-                </TouchableOpacity>
-              )}
-            </View>
-          </View>
-
-          {/* "My Sessions" Toggle */}
-          <View style={styles.toggleRow}>
-            <Text style={styles.toggleLabel}>Show Only My Sessions</Text>
-            <Switch
-              value={showMySessionsOnly}
-              onValueChange={setShowMySessionsOnly}
-              trackColor={{ false: '#D1D5DB', true: '#93C5FD' }}
-              thumbColor={showMySessionsOnly ? '#3B82F6' : '#F3F4F6'}
-            />
-          </View>
         </View>
-
-        {/* Time Pickers (hidden modals that appear when user taps time buttons) */}
-        {showStartTimePicker && (
-          <DateTimePicker
-            value={startTimeFilter || new Date()}
-            mode="time"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowStartTimePicker(false);
-              if (selectedDate) setStartTimeFilter(selectedDate);
-            }}
-          />
-        )}
-        {showEndTimePicker && (
-          <DateTimePicker
-            value={endTimeFilter || new Date()}
-            mode="time"
-            display="default"
-            onChange={(event, selectedDate) => {
-              setShowEndTimePicker(false);
-              if (selectedDate) setEndTimeFilter(selectedDate);
-            }}
-          />
-        )}
 
         <ScrollView 
           contentContainerStyle={styles.scrollContent}
@@ -967,9 +786,9 @@ const StudySessionsScreen = () => {
             <Text style={styles.welcomeText}>Welcome, {user.displayName || user.email}!</Text>
           )}
           
-          {/* USE FILTERED SESSIONS instead of all sessions */}
-          {getFilteredSessions().length > 0 ? (
-            getFilteredSessions().map(session => (
+          {/* Use searched sessions (flexible spacing/case-insensitive match) */}
+          {getSearchedSessions().length > 0 ? (
+            getSearchedSessions().map(session => (
               <SessionCard 
                 key={session.id} 
                 session={session} 
@@ -980,9 +799,9 @@ const StudySessionsScreen = () => {
             ))
           ) : (
             <View style={styles.emptyStateContainer}>
-              <Ionicons name="filter-outline" size={48} color="#9CA3AF" />
-              <Text style={styles.emptyStateText}>No sessions match your filters</Text>
-              <Text style={styles.emptyStateSubText}>Try adjusting your search criteria</Text>
+              <Ionicons name="search" size={48} color="#9CA3AF" />
+              <Text style={styles.emptyStateText}>No sessions match your search</Text>
+              <Text style={styles.emptyStateSubText}>Try another course or clear the search</Text>
             </View>
           )}
 
@@ -1305,7 +1124,7 @@ const styles = StyleSheet.create({
      Source/Tool: GitHub Copilot (Elias Ghanayem)
      Date: 2025-11-12
      
-     These styles control the appearance of the search/filter UI components.
+     These styles control the appearance of the search UI components.
      Key patterns used:
      - flexDirection: 'row' makes items line up horizontally
      - backgroundColor with # codes for colors
@@ -1314,7 +1133,7 @@ const styles = StyleSheet.create({
      - marginHorizontal/Vertical adds space outside elements
   */
   
-  // Container for all filter UI elements
+  // Container for the search bar
   filterContainer: {
     backgroundColor: 'white',
     marginHorizontal: 16,
@@ -1346,88 +1165,5 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#1F2937',
-  },
-  
-  // Row for filter labels and controls
-  filterRow: {
-    marginBottom: 12,
-  },
-  filterLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4B5563',
-    marginBottom: 6,
-  },
-  
-  // Day picker chips (horizontal scrollable buttons)
-  dayChipsContainer: {
-    flexDirection: 'row',
-  },
-  dayChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  dayChipSelected: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
-  },
-  dayChipText: {
-    fontSize: 14,
-    color: '#4B5563',
-    fontWeight: '500',
-  },
-  dayChipTextSelected: {
-    color: 'white',
-    fontWeight: '600',
-  },
-  
-  // Time filter row (side-by-side start/end time)
-  timeFilterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  timeFilterItem: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  timeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  timeButtonText: {
-    marginLeft: 6,
-    fontSize: 14,
-    color: '#1E40AF',
-    fontWeight: '500',
-  },
-  clearTimeButton: {
-    position: 'absolute',
-    right: 8,
-    top: 32,
-  },
-  
-  // "My Sessions" toggle switch row
-  toggleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  toggleLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#374151',
   },
 });
