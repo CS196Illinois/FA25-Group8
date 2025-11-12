@@ -194,7 +194,28 @@ This creates 3 sample sessions with different signup policies (required, preferr
 - **Expo Router**: Uses experimental features: `typedRoutes: true`, `reactCompiler: true`.
 
 ## About Me
-This project is being developed by a group of beginner Computer Science students who are learning mobile development through creating this project. As such, we will need help from time to time. When we ask you for help, any code you write make sure to comment how it worked in such a way that we can understand. Additionally, try to help us learn concepts so that we understand the code we are writing.
+This project is being developed by a group of beginner Computer Science students who are learning mobile development through creating this project. As such, we will need help from time to time. 
+
+**CRITICAL COMMENTING REQUIREMENTS:**
+When you write code for this project, comments must be detailed enough for team members to explain in 2-3 minute walkthroughs during 7-10 minute presentations. Your comments should be:
+
+1. **Educational**: Explain WHY, not just what
+   - ❌ BAD: "convert time"
+   - ✅ GOOD: "Convert to minutes for easy comparison (e.g., 2:30 PM → 870 minutes)"
+
+2. **Step-by-step**: Break down complex logic
+   - Use numbered filters: "FILTER 1:", "FILTER 2:", etc.
+   - Explain each step's purpose clearly
+
+3. **Concise but complete**: Detailed enough to teach from, brief enough to read quickly
+   - Include "TEACHING NOTES for 2-3 minute walkthrough:" sections
+   - Make them presentation-ready
+
+4. **Example-driven**: Include sample values
+   - e.g., "course name (e.g., 'CS 124', 'MATH 231')"
+   - e.g., "returns 0=Sunday, 1=Monday, ..., 6=Saturday"
+
+See the search/filter implementation in `studysessions.tsx` for excellent examples of this style.
 
 ## Current Features (November 2025)
 - ✅ **Authentication**: Firebase email/password with route guards  
@@ -204,7 +225,7 @@ This project is being developed by a group of beginner Computer Science students
 - ✅ **Google Calendar Integration**: Generate calendar event URLs for sessions  
 - ✅ **Google Maps Integration**: Platform-specific deep links to session locations  
 - ✅ **Notifications**: Expo notifications with AsyncStorage persistence  
-- 🚧 **Search/Filter**: In development (see `search-filter-feature` branch)
+- ✅ **Search/Filter**: Multi-criteria filtering (course search, day, time range, "My Sessions" toggle)
 
 ## Key Components & Functions
 
@@ -228,3 +249,12 @@ Creates template URLs that open Google Calendar with pre-filled event details:
 - Converts dates to Google's UTC format (`YYYYMMDDTHHMMSSZ`)
 - Handles missing end times gracefully (uses start time)
 - Opens for review before saving (no auto-add)
+
+### Search & Filter (`getFilteredSessions`)
+Located in `studysessions.tsx` (lines 580-648):
+- Multi-criteria filtering: search text, day of week, time range, "My Sessions" toggle
+- Sequential filtering using `.filter()` chains
+- Case-insensitive course search (e.g., "cs 124" matches "CS 124")
+- Time comparisons convert Date objects to minutes for easy comparison
+- Respects missing end times (includes sessions with no end time)
+- UI includes search bar, day chips, time pickers, and toggle switch
