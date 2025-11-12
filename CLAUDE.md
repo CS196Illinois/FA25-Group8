@@ -215,7 +215,7 @@ When you write code for this project, comments must be detailed enough for team 
    - e.g., "course name (e.g., 'CS 124', 'MATH 231')"
    - e.g., "returns 0=Sunday, 1=Monday, ..., 6=Saturday"
 
-See the search/filter implementation in `studysessions.tsx` for excellent examples of this style.
+Avoid long teaching-note style comments in code; keep comments concise and policy-compliant.
 
 ## Current Features (November 2025)
 - ✅ **Authentication**: Firebase email/password with route guards  
@@ -225,7 +225,7 @@ See the search/filter implementation in `studysessions.tsx` for excellent exampl
 - ✅ **Google Calendar Integration**: Generate calendar event URLs for sessions  
 - ✅ **Google Maps Integration**: Platform-specific deep links to session locations  
 - ✅ **Notifications**: Expo notifications with AsyncStorage persistence  
-- ✅ **Search/Filter**: Multi-criteria filtering (course search, day, time range, "My Sessions" toggle)
+- ✅ **Search (Course)**: Flexible, normalization-based search (case/spacing-insensitive)
 
 ## Key Components & Functions
 
@@ -250,11 +250,8 @@ Creates template URLs that open Google Calendar with pre-filled event details:
 - Handles missing end times gracefully (uses start time)
 - Opens for review before saving (no auto-add)
 
-### Search & Filter (`getFilteredSessions`)
-Located in `studysessions.tsx` (lines 580-648):
-- Multi-criteria filtering: search text, day of week, time range, "My Sessions" toggle
-- Sequential filtering using `.filter()` chains
-- Case-insensitive course search (e.g., "cs 124" matches "CS 124")
-- Time comparisons convert Date objects to minutes for easy comparison
-- Respects missing end times (includes sessions with no end time)
-- UI includes search bar, day chips, time pickers, and toggle switch
+### Search (`getSearchedSessions`)
+Located in `studysessions.tsx`:
+- Normalizes text by removing non-alphanumerics and uppercasing
+- Matches course names flexibly (e.g., "cs124", "c s 1 2 4", "CS", "124")
+- UI includes a single search bar above the list

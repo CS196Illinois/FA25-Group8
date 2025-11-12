@@ -27,7 +27,7 @@ These notes make AI coding agents productive fast in this repo. Keep edits small
 - ✅ **Google Calendar Integration**: Generate calendar event URLs for sessions
 - ✅ **Google Maps Integration**: Platform-specific deep links to session locations
 - ✅ **Notifications**: Expo notifications with AsyncStorage persistence
-- 🚧 **Search/Filter**: In development (see `search-filter-feature` branch)
+- ✅ **Search (Course)**: Flexible, normalization-based search (case/spacing-insensitive)
 
 ## Architectural conventions and patterns
 - Routing and auth guard:
@@ -66,25 +66,21 @@ These notes make AI coding agents productive fast in this repo. Keep edits small
 - AI policy (see `Docs/CS 124 Honors AI Policy.md`):
   - You MUST cite AI-generated code and you MUST understand it before committing.
   - Prefer small, reviewable insertions over large, opaque dumps. Treat AI as a teammate, not a replacement for your thinking.
-  - **CRITICAL: Comments must be detailed enough for 2-3 minute walkthroughs.** Team members need to explain their implementations in 7-10 minute presentations. Comments should be:
-    * **Educational**: Explain WHY, not just what (e.g., "Convert to minutes for easy comparison" not just "convert time")
-    * **Step-by-step**: Break down complex logic (e.g., "FILTER 1:", "FILTER 2:", etc.)
-    * **Concise but complete**: Detailed enough to teach from, brief enough to read quickly
-    * **Example-driven**: Include sample values (e.g., "e.g., 'CS 124', 'MATH 231'")
-  - Recommended comment header (copy/paste and edit):
+  - Comments must be concise and policy-compliant. Do NOT add long "TEACHING NOTES" blocks. Focus on:
+    * Purpose (WHY the code exists)
+    * Key decision(s) or trade-offs
+    * Validation note (how you verified it works)
+  - Single author: use your own name only; do not attribute to "+ team".
+  - Recommended header (copy/paste and edit):
     ```
     /* AI-ASSISTED
-       Source/Tool: GitHub Copilot (Chat) / Claude
-       Author/Reviewer: <your name>  
-       Date: YYYY-MM-DD  
+       Source/Tool: GitHub Copilot (Chat)
+       Author/Reviewer: <your name>
+       Date: YYYY-MM-DD
        Why AI: <short reason>
-       
-       TEACHING NOTES for 2-3 minute walkthrough:
-       <step-by-step explanation that you can read from during presentation>
-       
-       Notes: I validated behavior by <manual test/console output/screenshot>. */
+       Notes: Validated by <manual test/console output/screenshot>. */
     ```
-  - Example usage exists in `app/studysessions.tsx` as "AI-COPILOT SNIPPET" and "AI-ASSISTED" blocks—follow that style for clarity and auditability. See the search/filter implementation for excellent examples of educational commenting.
+  - Example usage exists in `app/studysessions.tsx` as "AI-ASSISTED" blocks—follow that style for clarity and auditability.
 
 ## Examples to copy
 - Firestore live list + mapping: `app/studysessions.tsx` (query, snapshot, type guards, rendering).

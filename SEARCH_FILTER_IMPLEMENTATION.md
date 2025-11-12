@@ -1,63 +1,86 @@
-# Search & Filter Implementation Guide
+# Course Search Implementation Guide
 
-**Feature**: Comprehensive search and filter system for study sessions  
+**Feature**: Flexible course search (spacing/case-insensitive)  
 **Date**: November 12, 2025  
 **Branch**: `search-filter-feature`  
 **Files Modified**: `Project/studysync-frontend/app/studysessions.tsx`
 
 ## What Was Implemented
 
-### 5 Filter Criteria
+Single search bar that matches course codes regardless of user input formatting:
+- Accepts: `CS124`, `cs 124`, `C s 1 2 4`, `124`, `CS`, `c    s`, etc.
+- Matching logic strips all non-alphanumeric characters and uppercases both the query and the course string, then uses `includes()`.
 
-1. **Course Search** - Text search by course name (case-insensitive)
-   - Example: Typing "cs 124" will match "CS 124", "cs 124", "CS124", etc.
-   
-2. **Day of Week** - Filter sessions by specific day
-   - Options: All Days, Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday
-   - Uses horizontal scrollable chips for easy selection
-   
-3. **Start Time Range** - Show only sessions starting AFTER a chosen time
-   - Example: Select 2:00 PM to only see sessions starting at 2 PM or later
-   - Time picker opens when you tap the "Starts After" button
-   
-4. **End Time Range** - Show only sessions ending BEFORE a chosen time
-   - Example: Select 5:00 PM to only see sessions ending by 5 PM
-   - Gracefully handles sessions with no end time (includes them)
-   
-5. **"My Sessions" Toggle** - Show only sessions you've joined
-   - Switch control that filters by current user's ID in attendees array
+### Normalization Function
+```ts
+const normalize = (s: string) => s.replace(/[^a-z0-9]/gi, '').toUpperCase();
+```
+Examples:
+| Raw Input | Normalized |
+|-----------|------------|
+| "CS 124"  | "CS124"    |
+| "c    s"  | "CS"       |
+| "   124"  | "124"      |
+| "cs_124"  | "CS124"    |
 
-### UI Components Added
+### Search Application
+```ts
+const getSearchedSessions = () => {
+  const q = normalize(searchText || '');
+  if (!q) return sessions;
+  return sessions.filter(s => normalize(s.course).includes(q));
+};
+```
 
+### UI Summary
 ```
 ┌─────────────────────────────────────────────┐
-│ 🔍 Search by course (e.g., CS 124)         │ ← Search bar with icon
-├─────────────────────────────────────────────┤
-│ Day: [All] [Sun] [Mon] [Tue] [Wed]...      │ ← Scrollable day chips
-├─────────────────────────────────────────────┤
-│ Starts After: 📅 2:00 PM        ❌          │ ← Time picker buttons
-│ Ends Before:  📅 5:00 PM        ❌          │   with clear buttons
-├─────────────────────────────────────────────┤
-│ Show Only My Sessions          🔘 OFF       │ ← Toggle switch
+│ 🔍 Search course (CS 124 / 124 / c s)       │
 └─────────────────────────────────────────────┘
 ```
 
-### How It Works (Step-by-Step)
+### Why This Approach
+- Robust against inconsistent user spacing
+- Avoids maintaining multiple regex variants
+- Performs well for small in-memory arrays
+- Easy to extend (e.g., add topic search by normalizing `s.topic`)
 
-1. **User enters filter criteria** → State variables update (`searchText`, `selectedDay`, etc.)
-2. **React automatically re-renders** → Calls `getFilteredSessions()`
-3. **getFilteredSessions() applies filters sequentially**:
-   ```
-   All Sessions
-   ↓ FILTER 1: Course search (if text entered)
-   ↓ FILTER 2: Day of week (if not "All Days")
-   ↓ FILTER 3: Start time (if start time selected)
-   ↓ FILTER 4: End time (if end time selected)
-   ↓ FILTER 5: My Sessions toggle (if enabled)
-   ↓
-   Filtered Results → Display on screen
-   ```
-4. **Empty state shows** if no sessions match filters
+### Edge Cases Considered
+- Empty search → returns all sessions
+- All-space input → treated as empty (after normalization)
+- Non-alphanumeric characters ignored (`CS-124` → `CS124`)
+- Case-insensitivity guaranteed via uppercase
+
+## Code References (Approximate Line Numbers)
+- State: searchText (near other session state)
+- Normalization + search: after Firebase subscription logic
+- Rendering: replace previous filtered mapping with `getSearchedSessions()`
+
+## Validation Performed
+- Manual tests with queries: `"CS 124"`, `"cs124"`, `"c s 1 2 4"`, `"124"`, `"CS"`, `"c    s"`
+- Confirmed courses like `CS 124`, `CS 173`, `CS 374` respond as expected
+
+## Future Extension Ideas (Deferred)
+- Optional topic search: OR match on normalized topic
+- Debounced input for performance (not required now)
+- Highlight matching substring in UI
+- Server-side indexing if dataset grows large
+
+## AI Policy Compliance
+- Comments are concise (purpose, decision, validation)
+- Single author attribution only
+- No large teaching-note blocks retained in code
+
+## Presentation (Quick Script)
+1. "Implemented a flexible course search that ignores spaces and case."
+2. "Normalization removes non-alphanumerics and uppercases; both query and course run through it."
+3. "Then we just do an includes() check for partial matches (e.g., 'CS' finds 'CS 124')."
+4. "Easy to extend to topics or multi-field search later."
+
+## Next Steps
+- Merge branch after review
+- Optionally add topic search
+- Consider moving normalization to a shared utility if reused
 
 ## Code Structure
 
