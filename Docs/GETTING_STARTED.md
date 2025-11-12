@@ -51,7 +51,7 @@ git clone https://github.com/CS196Illinois/FA25-Group8.git
 
 Our backend needs a secret key file to connect to our Firebase project. **This file must never be committed to GitHub.**
 
-1. **Get the Key:** Ask Elias for the `serviceAccountKey.json` file. He will send it to you directly (e.g., via Discord DM).
+1. **Get the Key:** Ask a team lead for the `serviceAccountKey.json` file. They will send it to you directly (e.g., via Discord DM).
 
 2. **Place the Key:** Place the `serviceAccountKey.json` file you receive inside the `Project/studysync-backend` folder.
 
@@ -62,16 +62,51 @@ cd Project/studysync-backend
 npm install
 ```
 
-**Step 5: Run the Server**
+**Step 5: Run the Backend (Optional)**
 
-This will start the backend on your local machine.
+The backend is optional for development. The frontend connects directly to Firebase.
 
 1. While still in the `Project/studysync-backend` directory in your terminal, run the following command:
 
 ```PowerShell
-node index.js
+npm start
 ```
 
 2. If everything is set up correctly, you will see the message: `Server is running on http://localhost:3000`.
+
+**Step 6: Set Up the Frontend**
+
+This is the React Native mobile app that students will use.
+
+1. Open a new terminal in VS Code and navigate to the frontend directory:
+
+```PowerShell
+cd Project/studysync-frontend
+```
+
+2. Install all required dependencies:
+
+```PowerShell
+npm install
+```
+
+3. Start the Expo development server:
+
+```PowerShell
+npm start
+```
+
+4. You should see a QR code and menu options. You can:
+   - Press `i` to open in iOS Simulator (Mac only)
+   - Press `a` to open in Android Emulator  
+   - Press `w` to open in web browser
+   - Scan QR code with Expo Go app on your phone
+
+**Step 7: Test the App**
+
+1. Once the app loads, you should see a login screen.
+2. Create an account or sign in with test credentials.
+3. After logging in, you should see the study sessions list.
+4. Try creating a new session using the blue "+" button.
 
 You are now ready to start developing!
