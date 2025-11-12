@@ -19,6 +19,16 @@ These notes make AI coding agents productive fast in this repo. Keep edits small
   - Login screen at `app/login.tsx` uses the `AuthContext`; successful auth redirects to `/(tabs)/studysessions`.
   - File-based routing via `expo-router` under `app/`. The tab route re-exports the screen from `app/studysessions.tsx`.
 
+## Current Features (November 2024)
+- ✅ **Authentication**: Firebase email/password with route guards
+- ✅ **Session List**: Real-time Firestore sync with live updates
+- ✅ **Join/Leave Sessions**: Firestore transactions with capacity validation
+- ✅ **Session Creation**: Modal with Google Places autocomplete and date/time picker
+- ✅ **Google Calendar Integration**: Generate calendar event URLs for sessions
+- ✅ **Google Maps Integration**: Platform-specific deep links to session locations
+- ✅ **Notifications**: Expo notifications with AsyncStorage persistence
+- 🚧 **Search/Filter**: In development (see `search-filter-feature` branch)
+
 ## Architectural conventions and patterns
 - Routing and auth guard:
   - `app/_layout.tsx` wraps the app with `AuthProvider` and redirects unauthenticated users to `/login` using `useSegments()` + `useRouter()`.
@@ -32,7 +42,7 @@ These notes make AI coding agents productive fast in this repo. Keep edits small
     const endTime = data.endTime instanceof Timestamp ? data.endTime.toDate() : null;
     ```
   - Keep this guard pattern when adding new Firestore-backed screens.
-- Session model (docs-backed): see `Docs/PLAN.md` (Sessions Data Model v3). The UI expects fields like `creatorName`, `course`, `topic`, `locationName`, `locationCoords`, `startTime`, optional `endTime`, `signupPolicy`, optional `capacity`, `attendees`, `isFull`.
+- Session model (Firestore-backed): The UI expects fields like `creatorName`, `course`, `topic`, `locationName`, `locationCoords`, `startTime`, optional `endTime`, `signupPolicy`, optional `capacity`, `attendees`, `isFull`. See the `StudySession` interface in `app/studysessions.tsx` for the complete type definition.
 - UI composition:
   - The main list lives in `app/studysessions.tsx` with small presentational components (`DetailRow`, `MapExcerpt`, `SessionCard`). Follow this style: compute display strings first, then render.
   - Mapping: we link out to Google Maps using `Linking` with platform-specific schemes and a web fallback.
@@ -73,6 +83,7 @@ These notes make AI coding agents productive fast in this repo. Keep edits small
 - Seed data shape: `Project/studysync-backend/scripts/seed-sessions.js`.
 
 ## Gotchas
-- Windows devs: if scripts won’t run, see `Docs/GETTING_STARTED.md` (ExecutionPolicy "RemoteSigned").
+- Windows devs: if scripts won't run, run `Set-ExecutionPolicy RemoteSigned -Scope CurrentUser` in PowerShell as admin.
 - Expo Notifications require device/emulator support; calls are no-ops on unsupported platforms.
-- Web analytics is guarded; don’t import `firebase/analytics` at top-level.
+- Web analytics is guarded; don't import `firebase/analytics` at top-level.
+- Google Places API requires billing enabled on Firebase project; manual location entry fallback exists with (0,0) coords.

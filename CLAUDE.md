@@ -195,3 +195,36 @@ This creates 3 sample sessions with different signup policies (required, preferr
 
 ## About Me
 This project is being developed by a group of beginner Computer Science students who are learning mobile development through creating this project. As such, we will need help from time to time. When we ask you for help, any code you write make sure to comment how it worked in such a way that we can understand. Additionally, try to help us learn concepts so that we understand the code we are writing.
+
+## Current Features (November 2025)
+- ✅ **Authentication**: Firebase email/password with route guards  
+- ✅ **Session List**: Real-time Firestore sync with live updates  
+- ✅ **Join/Leave Sessions**: Firestore transactions with capacity validation  
+- ✅ **Session Creation**: Modal with Google Places autocomplete and date/time picker  
+- ✅ **Google Calendar Integration**: Generate calendar event URLs for sessions  
+- ✅ **Google Maps Integration**: Platform-specific deep links to session locations  
+- ✅ **Notifications**: Expo notifications with AsyncStorage persistence  
+- 🚧 **Search/Filter**: In development (see `search-filter-feature` branch)
+
+## Key Components & Functions
+
+### Session Creation (`CreateSessionModal`)
+Located in `studysessions.tsx` (lines 327-485):
+- Uses `GooglePlacesAutocomplete` for location search
+- Falls back to manual text entry if Places API fails
+- `DateTimePicker` for start time selection
+- Validates course, topic, and location before submission
+- Creates Firestore document with `addDoc()` and `serverTimestamp()`
+
+### Join/Leave Sessions (`handleJoinSession`, `handleLeaveSession`)
+Located in `studysync.tsx` (lines 577-696):
+- Uses Firestore `runTransaction()` for atomic updates
+- Validates capacity limits before joining
+- Updates `attendees` array and `isFull` flag
+- Prevents duplicate joins and validates user is in session before leaving
+
+### Google Calendar Integration (`buildGoogleCalUrl`)
+Creates template URLs that open Google Calendar with pre-filled event details:
+- Converts dates to Google's UTC format (`YYYYMMDDTHHMMSSZ`)
+- Handles missing end times gracefully (uses start time)
+- Opens for review before saving (no auto-add)
