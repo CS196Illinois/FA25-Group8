@@ -764,7 +764,7 @@ const StudySessionsScreen = () => {
             <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search course (e.g., CS 124, 124, c s)"
+              placeholder="Search course (e.g., CS 124, MATH)"
               value={searchText}
               onChangeText={setSearchText}
               placeholderTextColor="#9CA3AF"
@@ -800,8 +800,8 @@ const StudySessionsScreen = () => {
           ) : (
             <View style={styles.emptyStateContainer}>
               <Ionicons name="search" size={48} color="#9CA3AF" />
-              <Text style={styles.emptyStateText}>No sessions match your search</Text>
-              <Text style={styles.emptyStateSubText}>Try another course or clear the search</Text>
+              <Text style={styles.emptyStateText}>No sessions match your search.</Text>
+              <Text style={styles.emptyStateSubText}>Try another course or clear the search.</Text>
             </View>
           )}
 

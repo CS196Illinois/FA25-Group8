@@ -74,11 +74,18 @@ export default function LoginScreen() {
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.formContainer}>
         <Text style={styles.title}>StudySync</Text>
-        <Text style={styles.subtitle}>{isSignUp ? 'Create an Account' : 'Welcome Back'}</Text>
+        <Text style={styles.subtitle}>{isSignUp ? 'Create an account.' : 'Welcome Back!'}</Text>
         {isSignUp && (
           <TextInput
             style={styles.input}
             placeholder="Full Name"
+            placeholderTextColor="#9CA3AF"
+            /**
+             * Above was line added placeholderTextColor to improve visibility of placeholder text.
+             * Some platforms affect placeholder text visibility differently.
+             * Adding this line ensures consistent appearance across devices.
+             * AI-ASSISTED SOLUTION 11/12/2025 by Elias Ghanayem
+             */
             value={displayName}
             onChangeText={setDisplayName}
             autoCapitalize="words"
@@ -87,6 +94,7 @@ export default function LoginScreen() {
         <TextInput
           style={styles.input}
           placeholder="Email"
+          placeholderTextColor="#9CA3AF"
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -96,6 +104,7 @@ export default function LoginScreen() {
         <TextInput
           style={styles.input}
           placeholder="Password"
+          placeholderTextColor="#9CA3AF"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -114,7 +123,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
           <Text style={styles.toggleText}>
-            {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign Up"}
+            {isSignUp ? 'Already have an account? Login!' : "Don't have an account? Sign up!"}
           </Text>
         </TouchableOpacity>
       </View>
