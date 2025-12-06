@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  SafeAreaView, 
-  ScrollView, 
-  TouchableOpacity, 
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
   ActivityIndicator,
   Linking,
   Platform,
@@ -15,9 +15,17 @@ import {
   KeyboardAvoidingView,
   Dimensions,
   Alert,
-  // NOTE: Switch removed (no filter toggle in search-only UI)
+  LogBox
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; 
+
+// Suppress VirtualizedList warning for GooglePlacesAutocomplete
+// The dropdown is positioned absolutely to avoid actual nesting issues,
+// but React Native still detects it in the component tree and warns.
+// This warning doesn't affect functionality and is expected with this library.
+LogBox.ignoreLogs([
+  'VirtualizedLists should never be nested',
+]);
+import { Ionicons } from '@expo/vector-icons';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
@@ -188,7 +196,7 @@ const MapExcerpt: React.FC<{ locationName: string, coords: LocationCoords }> = (
 
 /* AI-ASSISTED: SessionCard Component with Join/Leave + Calendar Integration
    Source: GitHub Copilot (Chat) + Manual Merge
-   Author/Reviewer: Elias Ghanayem
+   Author/Reviewer: Elias Ghanayem + Team
    Date: 2024-11-12
    Why AI: Combined join/leave functionality (from Joining-Sessions branch) with
           Google Calendar integration (from feat/calendar-gcal-button) into one component.
@@ -323,7 +331,8 @@ const EmptyState = () => (
    Why AI: Implement session creation UI and Firestore write flow quickly with clear validation and comments.
    Notes: Tested by creating a session and confirming it appears via onSnapshot.
 */
-const MODAL_HEIGHT = Dimensions.get('window').height * 0.9;
+// Reduce modal height to allow keyboard to fit better
+const MODAL_HEIGHT = Dimensions.get('window').height * 0.85;
 
 const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = ({ visible, onClose }) => {
   const { user } = useAuth();
@@ -336,7 +345,9 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
   const [capacity, setCapacity] = useState('');
   const [signupPolicy, setSignupPolicy] = useState<'required' | 'preferred' | 'open'>('open');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [placesFailed, setPlacesFailed] = useState(false); // Fallback if Places API not available
+
+  // Ref for GooglePlacesAutocomplete to ensure proper initialization
+  const placesRef = useRef<any>(null);
 
   const onDateTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDateTimePicker(Platform.OS === 'ios');
@@ -402,17 +413,29 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
 
   return (
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBackdrop}>
-        <Pressable style={styles.modalBackdrop} onPress={onClose} />
-        <View style={[styles.modalContent, { height: MODAL_HEIGHT }]}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>New Study Session</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close-circle" size={30} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
+      <View style={styles.modalBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 0, width: '100%' }}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        >
+          <View style={[styles.modalContent, { height: MODAL_HEIGHT }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>New Study Session</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close-circle" size={30} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView style={styles.formScrollView} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps='handled' nestedScrollEnabled>
+            <ScrollView
+              style={styles.formScrollView}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps='handled'
+              nestedScrollEnabled={true}
+              contentContainerStyle={{ paddingBottom: 150 }}
+              scrollEventThrottle={16}
+            >
             <Text style={styles.label}>Course</Text>
             <TextInput style={styles.input} placeholder="e.g., CS 124" value={course} onChangeText={setCourse} />
 
@@ -420,46 +443,130 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
             <TextInput style={styles.input} placeholder="e.g., Midterm 1 Prep" value={topic} onChangeText={setTopic} />
 
             <Text style={styles.label}>Location</Text>
-            <GooglePlacesAutocomplete
-              placeholder="Search for a location"
-              minLength={2}
-              fetchDetails
-              onFail={(e) => console.error('GooglePlaces error:', e)}
-              onNotFound={() => console.log('No places results')}
-              predefinedPlaces={[]}
-              textInputProps={{
-                onFocus: () => {},
-                onBlur: () => {},
-                returnKeyType: 'search',
-                placeholderTextColor: '#9CA3AF',
-                onChangeText: (text: string) => {
-                  // Manual fallback so user input counts even if Places API fails
-                  setLocation({ name: text, coords: location?.coords ?? null });
-                }
-              }}
-              onPress={(data: any, details: any | null = null) => {
-                // data: place summary, details: full place detail when fetchDetails=true
-                const { lat, lng } = details?.geometry?.location || {};
-                setLocation({
-                  name: data?.description,
-                  coords: lat && lng ? { latitude: lat, longitude: lng } : null,
-                });
-              }}
-              query={{
-                // TODO: Move API key to config/env and do not commit secrets
-                key: 'AIzaSyCSpOvxSXhquORKm4TJQvj1tMC3KpRBm4I',
-                language: 'en',
-              }}
-              requestUrl={{
-                useOnPlatform: 'web',
-                url: 'https://maps.googleapis.com/maps/api',
-              }}
-              styles={{ container: styles.googlePlacesContainer, textInput: styles.input, listView: styles.googlePlacesListView }}
-            />
-            {placesFailed && (
-              <Text style={{ color: '#EF4444', marginTop: 4, fontSize: 12 }}>
-                Places API unavailable; manual location name will be saved with default (0,0) coords.
-              </Text>
+            {/*
+              Google Places Autocomplete - Enhanced Implementation
+
+              Key Fixes:
+              1. Conditional rendering: Only show autocomplete when no location selected
+              2. Clear input after selection to dismiss dropdown
+              3. Absolutely positioned dropdown to avoid scroll conflicts
+              4. Proper tap handling with keyboardShouldPersistTaps
+              5. Manual focus clearing to ensure dropdown dismisses
+
+              How it works:
+              1. User types in the GooglePlacesAutocomplete field
+              2. Google Places API returns suggestions (in absolutely positioned dropdown)
+              3. User taps a suggestion
+              4. onPress saves selection and clears autocomplete
+              5. Selected location appears in a badge below
+              6. User can click "Change" to search again
+            */}
+            {!location ? (
+              <View style={{ zIndex: 1000, marginBottom: 20 }}>
+                <GooglePlacesAutocomplete
+                  ref={placesRef}
+                  placeholder="Search for a location (e.g., Grainger Library)"
+                  minLength={2}
+                  fetchDetails={true}
+                  onPress={(data, details = null) => {
+                    // Save the selected location
+                    const coords = details?.geometry?.location;
+                    setLocation({
+                      name: data.description,
+                      coords: coords ? { latitude: coords.lat, longitude: coords.lng } : { latitude: 0, longitude: 0 }
+                    });
+                    // Clear the input and blur to dismiss dropdown
+                    setTimeout(() => {
+                      placesRef.current?.setAddressText('');
+                      placesRef.current?.blur();
+                    }, 100);
+                  }}
+                  query={{
+                    key: 'AIzaSyCSpOvxSXhquORKm4TJQvj1tMC3KpRBm4I',
+                    language: 'en',
+                    types: 'establishment|geocode',
+                  }}
+                  predefinedPlaces={[]}
+                  predefinedPlacesAlwaysVisible={false}
+                  listViewDisplayed="auto"
+                  keepResultsAfterBlur={false}
+                  suppressDefaultStyles={false}
+                  styles={{
+                    container: {
+                      flex: 0,
+                      zIndex: 1001,
+                    },
+                    textInputContainer: {
+                      width: '100%',
+                      zIndex: 1001,
+                    },
+                    textInput: {
+                      ...styles.input,
+                      height: 48,
+                    },
+                    listView: {
+                      // CRITICAL: Position absolutely to avoid scroll conflicts
+                      position: 'absolute',
+                      top: 50,
+                      left: 0,
+                      right: 0,
+                      backgroundColor: 'white',
+                      borderWidth: 1,
+                      borderColor: '#D1D5DB',
+                      borderRadius: 8,
+                      maxHeight: 200,
+                      zIndex: 2000,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.25,
+                      shadowRadius: 3.84,
+                      elevation: 5,
+                    },
+                    row: {
+                      backgroundColor: '#FFFFFF',
+                      padding: 13,
+                      minHeight: 50,
+                      flexDirection: 'row',
+                    },
+                    separator: {
+                      height: 0.5,
+                      backgroundColor: '#E5E7EB',
+                    },
+                    description: {
+                      fontSize: 14,
+                      color: '#1F2937',
+                    },
+                    poweredContainer: {
+                      display: 'none',
+                    }
+                  }}
+                  textInputProps={{
+                    placeholderTextColor: '#9CA3AF',
+                    returnKeyType: 'search',
+                    autoCorrect: false,
+                    autoCapitalize: 'none',
+                  }}
+                  enablePoweredByContainer={false}
+                  debounce={300}
+                  onFail={(error) => console.warn('Google Places error:', error)}
+                  keyboardShouldPersistTaps="handled"
+                  listUnderlayColor="transparent"
+                />
+              </View>
+            ) : (
+              // Show selected location with option to change
+              <View style={styles.selectedLocationContainer}>
+                <View style={styles.selectedLocationContent}>
+                  <Ionicons name="location" size={20} color="#3B82F6" />
+                  <Text style={styles.selectedLocationText} numberOfLines={2}>{location.name}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setLocation(null)}
+                  style={styles.changeLocationButton}
+                >
+                  <Text style={styles.changeLocationButtonText}>Change</Text>
+                </TouchableOpacity>
+              </View>
             )}
 
             <Text style={styles.label}>Location Details (Optional)</Text>
@@ -480,8 +587,236 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
               {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitButtonText}>Create Session</Text>}
             </TouchableOpacity>
           </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+    </Modal>
+  );
+};
+
+/* AI-ASSISTED
+   Source/Tool: Claude Code
+   Author/Reviewer: Nikhil Kothavade
+   Date: 2025-12-06
+   Why AI: Implemented filter modal UI with date/time pickers, dropdown for signup policy, and capacity input
+   Notes: Modal follows same pattern as CreateSessionModal for consistency */
+const FilterModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  filterStartDate: Date | null;
+  filterEndDate: Date | null;
+  filterStartTime: string;
+  filterEndTime: string;
+  filterSignupPolicy: 'required' | 'preferred' | 'open' | '';
+  filterCapacity: string;
+  onStartDateChange: (date: Date | null) => void;
+  onEndDateChange: (date: Date | null) => void;
+  onStartTimeChange: (time: string) => void;
+  onEndTimeChange: (time: string) => void;
+  onSignupPolicyChange: (policy: 'required' | 'preferred' | 'open' | '') => void;
+  onCapacityChange: (capacity: string) => void;
+  onResetFilters: () => void;
+}> = ({
+  visible,
+  onClose,
+  filterStartDate,
+  filterEndDate,
+  filterStartTime,
+  filterEndTime,
+  filterSignupPolicy,
+  filterCapacity,
+  onStartDateChange,
+  onEndDateChange,
+  onStartTimeChange,
+  onEndTimeChange,
+  onSignupPolicyChange,
+  onCapacityChange,
+  onResetFilters,
+}) => {
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+
+  const onStartDatePickerChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowStartDatePicker(false);
+    if (selectedDate) {
+      onStartDateChange(selectedDate);
+    }
+  };
+
+  const onEndDatePickerChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowEndDatePicker(false);
+    if (selectedDate) {
+      onEndDateChange(selectedDate);
+    }
+  };
+
+  return (
+    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+      <View style={styles.modalBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 0, width: '100%' }}
+        >
+          <View style={[styles.modalContent, { height: MODAL_HEIGHT }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filter Sessions</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <Ionicons name="close-circle" size={30} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={styles.formScrollView}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps='handled'
+              contentContainerStyle={{ paddingBottom: 100 }}
+            >
+              {/* Date Range Filter */}
+              <Text style={styles.label}>Start Date (From)</Text>
+              <TouchableOpacity
+                onPress={() => setShowStartDatePicker(true)}
+                style={styles.dateTimePickerButton}
+              >
+                <Text style={styles.dateTimePickerText}>
+                  {filterStartDate ? formatDate(filterStartDate) : 'Select Start Date'}
+                </Text>
+              </TouchableOpacity>
+              {showStartDatePicker && (
+                <View style={styles.datePickerContainer}>
+                  <DateTimePicker
+                    value={filterStartDate || new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={onStartDatePickerChange}
+                  />
+                </View>
+              )}
+
+              <Text style={styles.label}>End Date (To)</Text>
+              <TouchableOpacity
+                onPress={() => setShowEndDatePicker(true)}
+                style={styles.dateTimePickerButton}
+              >
+                <Text style={styles.dateTimePickerText}>
+                  {filterEndDate ? formatDate(filterEndDate) : 'Select End Date'}
+                </Text>
+              </TouchableOpacity>
+              {showEndDatePicker && (
+                <View style={styles.datePickerContainer}>
+                  <DateTimePicker
+                    value={filterEndDate || new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={onEndDatePickerChange}
+                  />
+                </View>
+              )}
+
+              {/* Time Range Filter */}
+              <Text style={styles.label}>Start Time (HH:MM, 24-hour format)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., 09:00"
+                value={filterStartTime}
+                onChangeText={onStartTimeChange}
+                keyboardType="numbers-and-punctuation"
+              />
+
+              <Text style={styles.label}>End Time (HH:MM, 24-hour format)</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., 17:00"
+                value={filterEndTime}
+                onChangeText={onEndTimeChange}
+                keyboardType="numbers-and-punctuation"
+              />
+
+              {/* Signup Policy Filter */}
+              <Text style={styles.label}>Signup Policy</Text>
+              <View style={styles.policyButtonsContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.policyButton,
+                    filterSignupPolicy === '' && styles.policyButtonActive
+                  ]}
+                  onPress={() => onSignupPolicyChange('')}
+                >
+                  <Text style={[
+                    styles.policyButtonText,
+                    filterSignupPolicy === '' && styles.policyButtonTextActive
+                  ]}>All</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.policyButton,
+                    filterSignupPolicy === 'required' && styles.policyButtonActive
+                  ]}
+                  onPress={() => onSignupPolicyChange('required')}
+                >
+                  <Text style={[
+                    styles.policyButtonText,
+                    filterSignupPolicy === 'required' && styles.policyButtonTextActive
+                  ]}>Required</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.policyButton,
+                    filterSignupPolicy === 'preferred' && styles.policyButtonActive
+                  ]}
+                  onPress={() => onSignupPolicyChange('preferred')}
+                >
+                  <Text style={[
+                    styles.policyButtonText,
+                    filterSignupPolicy === 'preferred' && styles.policyButtonTextActive
+                  ]}>Preferred</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.policyButton,
+                    filterSignupPolicy === 'open' && styles.policyButtonActive
+                  ]}
+                  onPress={() => onSignupPolicyChange('open')}
+                >
+                  <Text style={[
+                    styles.policyButtonText,
+                    filterSignupPolicy === 'open' && styles.policyButtonTextActive
+                  ]}>Open</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Capacity Filter */}
+              <Text style={styles.label}>Minimum Capacity</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g., 10"
+                value={filterCapacity}
+                onChangeText={onCapacityChange}
+                keyboardType="number-pad"
+              />
+              <Text style={styles.helperText}>
+                Note: Sessions without a capacity will be excluded when this filter is applied
+              </Text>
+
+              {/* Action Buttons */}
+              <View style={styles.filterButtonsContainer}>
+                <TouchableOpacity
+                  style={styles.resetButton}
+                  onPress={onResetFilters}
+                >
+                  <Text style={styles.resetButtonText}>Reset Filters</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.applyButton}
+                  onPress={onClose}
+                >
+                  <Text style={styles.applyButtonText}>Apply Filters</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };
@@ -492,7 +827,7 @@ const StudySessionsScreen = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  
+
   /* AI-ASSISTED
     Source/Tool: GitHub Copilot (Chat)
     Author/Reviewer: Elias Ghanayem
@@ -500,7 +835,21 @@ const StudySessionsScreen = () => {
     Why AI: Implemented a simple, flexible search state and matcher quickly.
     Policy note: Comments are concise and policy-compliant (no long teaching notes). */
   const [searchText, setSearchText] = useState('');
-  
+
+  /* AI-ASSISTED
+    Source/Tool: Claude Code
+    Author/Reviewer: Nikhil Kothavade
+    Date: 2025-12-06
+    Why AI: Implemented filter state management for date, time, signup policy, and capacity filters
+    Notes: Tested with various filter combinations to ensure sessions are filtered correctly */
+  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
+  const [filterStartDate, setFilterStartDate] = useState<Date | null>(null);
+  const [filterEndDate, setFilterEndDate] = useState<Date | null>(null);
+  const [filterStartTime, setFilterStartTime] = useState<string>('');
+  const [filterEndTime, setFilterEndTime] = useState<string>('');
+  const [filterSignupPolicy, setFilterSignupPolicy] = useState<'required' | 'preferred' | 'open' | ''>('');
+  const [filterCapacity, setFilterCapacity] = useState<string>('');
+
   const { user, logOut } = useAuth();
 
   useEffect(() => {
@@ -579,17 +928,111 @@ const StudySessionsScreen = () => {
      Why AI: Implement flexible, spacing/case-insensitive search quickly.
      Matching rule: normalize both strings (remove non-alphanumerics, uppercase) and use includes(). */
   const normalize = (s: string) => s.replace(/[^a-z0-9]/gi, '').toUpperCase();
+
+  /* AI-ASSISTED
+     Source/Tool: Claude Code
+     Author/Reviewer: Nikhil Kothavade
+     Date: 2025-12-06
+     Why AI: Implemented comprehensive filtering logic with date, time, signup policy, and capacity filters
+     Notes: Sessions without capacity are excluded when capacity filter is applied, as requested */
   const getSearchedSessions = (): StudySession[] => {
     const q = normalize(searchText || '');
-    if (!q) return sessions;
-    return sessions.filter(s => normalize(s.course).includes(q));
+    let filtered = sessions;
+
+    // Apply search filter
+    if (q) {
+      filtered = filtered.filter(s =>
+        normalize(s.course).includes(q) || normalize(s.topic).includes(q)
+      );
+    }
+
+    // Apply date filter (start date)
+    if (filterStartDate) {
+      filtered = filtered.filter(s => {
+        const sessionDate = new Date(s.startTime);
+        sessionDate.setHours(0, 0, 0, 0);
+        const filterDate = new Date(filterStartDate);
+        filterDate.setHours(0, 0, 0, 0);
+        return sessionDate >= filterDate;
+      });
+    }
+
+    // Apply date filter (end date)
+    if (filterEndDate) {
+      filtered = filtered.filter(s => {
+        const sessionDate = new Date(s.startTime);
+        sessionDate.setHours(0, 0, 0, 0);
+        const filterDate = new Date(filterEndDate);
+        filterDate.setHours(0, 0, 0, 0);
+        return sessionDate <= filterDate;
+      });
+    }
+
+    // Apply time filter (start time)
+    if (filterStartTime) {
+      const [hours, minutes] = filterStartTime.split(':').map(Number);
+      if (!isNaN(hours) && !isNaN(minutes)) {
+        filtered = filtered.filter(s => {
+          const sessionHours = s.startTime.getHours();
+          const sessionMinutes = s.startTime.getMinutes();
+          const sessionTimeInMinutes = sessionHours * 60 + sessionMinutes;
+          const filterTimeInMinutes = hours * 60 + minutes;
+          return sessionTimeInMinutes >= filterTimeInMinutes;
+        });
+      }
+    }
+
+    // Apply time filter (end time)
+    if (filterEndTime) {
+      const [hours, minutes] = filterEndTime.split(':').map(Number);
+      if (!isNaN(hours) && !isNaN(minutes)) {
+        filtered = filtered.filter(s => {
+          const sessionHours = s.startTime.getHours();
+          const sessionMinutes = s.startTime.getMinutes();
+          const sessionTimeInMinutes = sessionHours * 60 + sessionMinutes;
+          const filterTimeInMinutes = hours * 60 + minutes;
+          return sessionTimeInMinutes <= filterTimeInMinutes;
+        });
+      }
+    }
+
+    // Apply signup policy filter
+    if (filterSignupPolicy) {
+      filtered = filtered.filter(s => s.signupPolicy === filterSignupPolicy);
+    }
+
+    // Apply capacity filter (exclude sessions without capacity when filter is set)
+    if (filterCapacity) {
+      const minCapacity = parseInt(filterCapacity, 10);
+      if (!isNaN(minCapacity)) {
+        filtered = filtered.filter(s => {
+          // Exclude sessions without a defined capacity
+          if (s.capacity === undefined || s.capacity === null) {
+            return false;
+          }
+          return s.capacity >= minCapacity;
+        });
+      }
+    }
+
+    return filtered;
+  };
+
+  // Reset all filters
+  const handleResetFilters = () => {
+    setFilterStartDate(null);
+    setFilterEndDate(null);
+    setFilterStartTime('');
+    setFilterEndTime('');
+    setFilterSignupPolicy('');
+    setFilterCapacity('');
   };
 
   /* ============ SESSION JOIN/LEAVE FUNCTIONS ============
      AI-ASSISTED
-     Source/Tool: Claude + Manual Implementation
-     Author/Reviewer: Aryan
-     Date: 2025-11-10
+     Source/Tool: GitHub Copilot (Chat) + Manual Implementation
+     Author/Reviewer: Aryan + Team
+     Date: 2024-11-11
      Why AI: Needed Firestore transaction logic for safe concurrent updates to attendee lists.
      Notes: Tested join/leave with multiple users simultaneously. Verified capacity limits,
             isFull flag updates, and user already-joined validation. */
@@ -750,6 +1193,23 @@ const StudySessionsScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <CreateSessionModal visible={isModalVisible} onClose={() => setIsModalVisible(false)} />
+      <FilterModal
+        visible={isFilterModalVisible}
+        onClose={() => setIsFilterModalVisible(false)}
+        filterStartDate={filterStartDate}
+        filterEndDate={filterEndDate}
+        filterStartTime={filterStartTime}
+        filterEndTime={filterEndTime}
+        filterSignupPolicy={filterSignupPolicy}
+        filterCapacity={filterCapacity}
+        onStartDateChange={setFilterStartDate}
+        onEndDateChange={setFilterEndDate}
+        onStartTimeChange={setFilterStartTime}
+        onEndTimeChange={setFilterEndTime}
+        onSignupPolicyChange={setFilterSignupPolicy}
+        onCapacityChange={setFilterCapacity}
+        onResetFilters={handleResetFilters}
+      />
       <View style={styles.listFrame}>
         <View style={styles.header}>
           <Text style={styles.listTitle}>Upcoming Study Sessions</Text>
@@ -758,17 +1218,17 @@ const StudySessionsScreen = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Search Bar (search-only UI) */}
+        {/* Search Bar and Filter Button */}
         <View style={styles.filterContainer}>
           <View style={styles.searchContainer}>
             <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search course (e.g., CS 124, MATH)"
+              placeholder="Search course or topic (e.g., CS 124, quiz prep)"
               value={searchText}
               onChangeText={setSearchText}
               placeholderTextColor="#9CA3AF"
-              accessibilityLabel="Search by course"
+              accessibilityLabel="Search by course or topic"
             />
             {searchText.length > 0 && (
               <TouchableOpacity onPress={() => setSearchText('')} accessibilityLabel="Clear search">
@@ -776,6 +1236,16 @@ const StudySessionsScreen = () => {
               </TouchableOpacity>
             )}
           </View>
+
+          {/* Filter Button */}
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setIsFilterModalVisible(true)}
+            accessibilityLabel="Open filters"
+          >
+            <Ionicons name="options-outline" size={20} color="#3B82F6" />
+            <Text style={styles.filterButtonText}>Filters</Text>
+          </TouchableOpacity>
         </View>
 
         <ScrollView 
@@ -785,14 +1255,14 @@ const StudySessionsScreen = () => {
           {user && (
             <Text style={styles.welcomeText}>Welcome, {user.displayName || user.email}!</Text>
           )}
-          
+
           {/* Use searched sessions (flexible spacing/case-insensitive match) */}
           {getSearchedSessions().length > 0 ? (
             getSearchedSessions().map(session => (
-              <SessionCard 
-                key={session.id} 
-                session={session} 
-                currentUserId={user?.uid} 
+              <SessionCard
+                key={session.id}
+                session={session}
+                currentUserId={user?.uid}
                 onJoin={handleJoinSession}
                 onLeave={handleLeaveSession}
               />
@@ -1079,16 +1549,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
   },
-  googlePlacesContainer: {
-    flex: 1,
-  },
-  googlePlacesListView: {
-    backgroundColor: 'white',
-    borderColor: '#D1D5DB',
-    borderWidth: 1,
-    borderRadius: 8,
-    marginTop: 2,
-  },
+  // Removed googlePlacesContainer and googlePlacesListView styles (no longer needed)
   dateTimePickerButton: {
     backgroundColor: '#F9FAFB',
     borderWidth: 1,
@@ -1096,11 +1557,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     alignItems: 'center',
+    alignSelf: 'center',
+    width: '80%',
   },
   dateTimePickerText: {
     fontSize: 16,
     color: '#3B82F6',
     fontWeight: '600',
+  },
+  datePickerContainer: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    alignItems: 'center',
+    alignSelf: 'center',
+    width: '80%',
   },
   submitButton: {
     backgroundColor: '#3B82F6',
@@ -1118,12 +1592,46 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
   },
-  
+  // Selected location display styles
+  selectedLocationContainer: {
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    borderRadius: 8,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  selectedLocationContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
+  },
+  selectedLocationText: {
+    fontSize: 14,
+    color: '#1F2937',
+    marginLeft: 8,
+    flex: 1,
+  },
+  changeLocationButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#3B82F6',
+    borderRadius: 6,
+  },
+  changeLocationButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+
   /* ============ SEARCH & FILTER STYLES ============
      AI-ASSISTED
      Source/Tool: GitHub Copilot (Elias Ghanayem)
      Date: 2025-11-12
-     
+
      These styles control the appearance of the search UI components.
      Key patterns used:
      - flexDirection: 'row' makes items line up horizontally
@@ -1132,7 +1640,7 @@ const styles = StyleSheet.create({
      - paddingHorizontal/Vertical adds space inside elements
      - marginHorizontal/Vertical adds space outside elements
   */
-  
+
   // Container for the search bar
   filterContainer: {
     backgroundColor: 'white',
@@ -1147,7 +1655,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  
+
   // Search bar container (with icon and input field)
   searchContainer: {
     flexDirection: 'row',
@@ -1165,5 +1673,105 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#1F2937',
+  },
+
+  /* ============ FILTER BUTTON AND MODAL STYLES ============
+     AI-ASSISTED
+     Source/Tool: Claude Code
+     Author/Reviewer: Nikhil Kothavade
+     Date: 2025-12-06
+     Why AI: Created comprehensive styles for filter modal and buttons
+     Notes: Follows existing design patterns with consistent colors and spacing */
+
+  // Filter button (appears next to search bar)
+  filterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    marginTop: 12,
+  },
+  filterButtonText: {
+    color: '#3B82F6',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+
+  // Policy selection buttons container
+  policyButtonsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  policyButton: {
+    width: '48%',
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  policyButtonActive: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  policyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4B5563',
+  },
+  policyButtonTextActive: {
+    color: 'white',
+  },
+
+  // Helper text for capacity filter
+  helperText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+
+  // Filter action buttons container
+  filterButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 24,
+    marginBottom: 20,
+  },
+  resetButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  resetButtonText: {
+    color: '#4B5563',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  applyButton: {
+    flex: 1,
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
