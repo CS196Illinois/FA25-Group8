@@ -199,7 +199,8 @@ const SessionCard: React.FC<{
   currentUserId: string | undefined; 
   onJoin: (sessionId: string) => void; 
   onLeave: (sessionId: string) => void;
-}> = ({ session, currentUserId, onJoin, onLeave }) => {
+  badges?: Array<{ label: string; color: string }>;
+}> = ({ session, currentUserId, onJoin, onLeave, badges }) => {
   const numAttendees = session.attendees.length;
   const timeStart = formatTime(session.startTime);
   const timeEnd = formatTime(session.endTime);
@@ -247,6 +248,17 @@ const SessionCard: React.FC<{
           <Text style={styles.badgeText}>{policyText}</Text>
         </View>
       </View>
+
+      {/* Optional category badges (e.g., Created, Joined, Past) - top-right corner */}
+      {badges && badges.length > 0 && (
+        <View style={styles.categoryBadgesContainer}>
+          {badges.map((badge, index) => (
+            <View key={index} style={[styles.categoryBadge, { backgroundColor: badge.color }]}>
+              <Text style={styles.categoryBadgeText}>{badge.label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       <Text style={styles.cardTopic}>{session.topic}</Text>
 
@@ -1014,6 +1026,26 @@ const styles = StyleSheet.create({
     color: 'white',
     fontWeight: '600',
     fontSize: 16,
+  },
+  // Category badges for profile view (Created, Joined, Past)
+  categoryBadgesContainer: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    flexDirection: 'column',
+    gap: 4,
+  },
+  categoryBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  categoryBadgeText: {
+    color: 'white',
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
   // New styles for creation modal and FAB (from feat/calendar-gcal-button branch)
   fab: {

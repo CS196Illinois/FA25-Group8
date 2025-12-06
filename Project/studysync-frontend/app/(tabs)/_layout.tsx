@@ -48,6 +48,28 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* Profile Tab
+       * AI-ASSISTED
+       * Source/Tool: GitHub Copilot (Chat)
+       * Author/Reviewer: Elias Ghanayem
+       * Date: 2025-12-05
+       * Purpose: User profile screen with session history (created/joined/past), stats, and account management
+       * Route: Maps to app/(tabs)/profile.tsx via expo-router file-based routing
+       * Icon: Uses Ionicons person/person-outline with conditional rendering based on tab focus
+       */}
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons 
+              name={focused ? 'person' : 'person-outline'} 
+              size={24} 
+              color={color} 
+            />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
