@@ -12,7 +12,6 @@ import {
   Modal,
   TextInput,
   Pressable,
-  KeyboardAvoidingView,
   Dimensions,
   Alert,
   LogBox
@@ -341,7 +340,9 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
   const [location, setLocation] = useState<SelectedLocation | null>(null);
   const [locationDetails, setLocationDetails] = useState('');
   const [startTime, setStartTime] = useState(new Date());
+  const [endTime, setEndTime] = useState<Date | null>(null);
   const [showDateTimePicker, setShowDateTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
   const [capacity, setCapacity] = useState('');
   const [signupPolicy, setSignupPolicy] = useState<'required' | 'preferred' | 'open'>('open');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -350,9 +351,20 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
   const placesRef = useRef<any>(null);
 
   const onDateTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    setShowDateTimePicker(Platform.OS === 'ios');
-    if (selectedDate) {
+    if (event.type === 'set' && selectedDate) {
       setStartTime(selectedDate);
+      setShowDateTimePicker(false);
+    } else if (event.type === 'dismissed') {
+      setShowDateTimePicker(false);
+    }
+  };
+
+  const onEndTimeChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    if (event.type === 'set' && selectedDate) {
+      setEndTime(selectedDate);
+      setShowEndTimePicker(false);
+    } else if (event.type === 'dismissed') {
+      setShowEndTimePicker(false);
     }
   };
 
@@ -361,9 +373,37 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
       Alert.alert('Error', 'You must be logged in to create a session.');
       return;
     }
-    // Accept manual location name even if coords missing (fallback when Places fails)
-    if (!course.trim() || !topic.trim() || !location || !location.name.trim()) {
-      Alert.alert('Missing Information', 'Please fill out Course, Topic, and Location name.');
+
+    // Validate required fields with specific error messages
+    const missingFields: string[] = [];
+
+    if (!course.trim()) {
+      missingFields.push('Course');
+    }
+    if (!topic.trim()) {
+      missingFields.push('Topic');
+    }
+    if (!location || !location.name.trim()) {
+      missingFields.push('Location');
+    }
+
+    if (missingFields.length > 0) {
+      const fieldsList = missingFields.join(', ');
+      const message = `Please fill out the following required field${missingFields.length > 1 ? 's' : ''}: ${fieldsList}`;
+      Alert.alert('Missing Information', message);
+      return;
+    }
+
+    // Validate capacity if provided - must be a positive number
+    const trimmedCapacity = capacity.trim();
+    if (trimmedCapacity && (isNaN(parseInt(trimmedCapacity, 10)) || parseInt(trimmedCapacity, 10) <= 0)) {
+      Alert.alert('Invalid Capacity', 'Capacity must be a positive number or left empty.');
+      return;
+    }
+
+    // Validate end time if provided - must be after start time
+    if (endTime && endTime <= startTime) {
+      Alert.alert('Invalid End Time', 'End time must be after the start time.');
       return;
     }
 
@@ -372,21 +412,28 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
       const db = getFirestore(FIREBASE_APP);
       const sessionsCollectionRef = collection(db, 'sessions');
 
-      const newSession: Omit<StudySessionFirestore, 'createdAt'> = {
+      // Build session object conditionally to avoid undefined values
+      const newSession: any = {
         creatorId: user.uid,
         creatorName: user.displayName || user.email || 'Anonymous',
         course: course.trim(),
         topic: topic.trim(),
         locationName: location.name,
-        locationDetails: locationDetails.trim() || undefined,
         locationCoords: location.coords ?? { latitude: 0, longitude: 0 }, // fallback coords if Places failed
         startTime: Timestamp.fromDate(startTime),
-        endTime: null,
+        endTime: endTime ? Timestamp.fromDate(endTime) : null,
         signupPolicy,
-        capacity: capacity ? parseInt(capacity, 10) : undefined,
         attendees: [user.uid],
         isFull: false,
       };
+
+      // Only include optional fields if they have values (avoid undefined)
+      if (locationDetails.trim()) {
+        newSession.locationDetails = locationDetails.trim();
+      }
+      if (trimmedCapacity) {
+        newSession.capacity = parseInt(trimmedCapacity, 10);
+      }
 
       await addDoc(sessionsCollectionRef, {
         ...newSession,
@@ -403,6 +450,7 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
       setLocation(null);
       setLocationDetails('');
       setStartTime(new Date());
+      setEndTime(null);
       setCapacity('');
     } catch (error) {
       console.error('Error creating session:', error);
@@ -415,27 +463,23 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 0, width: '100%' }}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-        >
-          <View style={[styles.modalContent, { height: MODAL_HEIGHT }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Study Session</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close-circle" size={30} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
+        <View style={[styles.modalContent, { height: MODAL_HEIGHT }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>New Study Session</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close-circle" size={30} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
 
-            <ScrollView
-              style={styles.formScrollView}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps='handled'
-              nestedScrollEnabled={true}
-              contentContainerStyle={{ paddingBottom: 150 }}
-              scrollEventThrottle={16}
-            >
+          <ScrollView
+            style={styles.formScrollView}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps='handled'
+            nestedScrollEnabled={true}
+            contentContainerStyle={{ paddingBottom: 150 }}
+            scrollEventThrottle={16}
+            keyboardDismissMode="on-drag"
+          >
             <Text style={styles.label}>Course</Text>
             <TextInput style={styles.input} placeholder="e.g., CS 124" value={course} onChangeText={setCourse} />
 
@@ -573,11 +617,64 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
             <TextInput style={styles.input} placeholder="e.g., Room 12, Main Library" value={locationDetails} onChangeText={setLocationDetails} />
 
             <Text style={styles.label}>Start Time</Text>
-            <TouchableOpacity onPress={() => setShowDateTimePicker(true)} style={styles.dateTimePickerButton}>
+            <TouchableOpacity
+              onPress={() => setShowDateTimePicker(!showDateTimePicker)}
+              style={styles.dateTimePickerButton}
+            >
               <Text style={styles.dateTimePickerText}>{`${formatDate(startTime)} at ${formatTime(startTime)}`}</Text>
             </TouchableOpacity>
             {showDateTimePicker && (
-              <DateTimePicker testID="dateTimePicker" value={startTime} mode="datetime" is24Hour={false} display="default" onChange={onDateTimeChange} />
+              <View style={styles.datePickerContainer}>
+                <DateTimePicker
+                  testID="dateTimePicker"
+                  value={startTime}
+                  mode="datetime"
+                  is24Hour={false}
+                  display="default"
+                  onChange={onDateTimeChange}
+                />
+              </View>
+            )}
+
+            <Text style={styles.label}>End Time (Optional)</Text>
+            <TouchableOpacity
+              onPress={() => {
+                if (endTime) {
+                  // If end time exists, toggle the picker to allow editing
+                  setShowEndTimePicker(!showEndTimePicker);
+                } else {
+                  // If no end time, show the picker
+                  setShowEndTimePicker(true);
+                }
+              }}
+              style={styles.dateTimePickerButton}
+            >
+              <Text style={styles.dateTimePickerText}>
+                {endTime ? `${formatDate(endTime)} at ${formatTime(endTime)}` : 'Tap to set end time'}
+              </Text>
+            </TouchableOpacity>
+            {endTime && (
+              <TouchableOpacity
+                onPress={() => {
+                  setEndTime(null);
+                  setShowEndTimePicker(false);
+                }}
+                style={{ alignSelf: 'center', marginTop: 8 }}
+              >
+                <Text style={{ color: '#EF4444', fontSize: 14, fontWeight: '600' }}>Clear End Time</Text>
+              </TouchableOpacity>
+            )}
+            {showEndTimePicker && (
+              <View style={styles.datePickerContainer}>
+                <DateTimePicker
+                  testID="endTimePicker"
+                  value={endTime || new Date()}
+                  mode="datetime"
+                  is24Hour={false}
+                  display="default"
+                  onChange={onEndTimeChange}
+                />
+              </View>
             )}
 
             <Text style={styles.label}>Capacity (Optional)</Text>
@@ -587,8 +684,7 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
               {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitButtonText}>Create Session</Text>}
             </TouchableOpacity>
           </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
+        </View>
       </View>
     </Modal>
   );
@@ -654,24 +750,21 @@ const FilterModal: React.FC<{
     <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={{ flex: 0, width: '100%' }}
-        >
-          <View style={[styles.modalContent, { height: MODAL_HEIGHT }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Filter Sessions</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <Ionicons name="close-circle" size={30} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
+        <View style={[styles.modalContent, { height: MODAL_HEIGHT }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter Sessions</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close-circle" size={30} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
 
-            <ScrollView
-              style={styles.formScrollView}
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps='handled'
-              contentContainerStyle={{ paddingBottom: 100 }}
-            >
+          <ScrollView
+            style={styles.formScrollView}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps='handled'
+            contentContainerStyle={{ paddingBottom: 100 }}
+            keyboardDismissMode="on-drag"
+          >
               {/* Date Range Filter */}
               <Text style={styles.label}>Start Date (From)</Text>
               <TouchableOpacity
@@ -814,8 +907,7 @@ const FilterModal: React.FC<{
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </View>
-        </KeyboardAvoidingView>
+        </View>
       </View>
     </Modal>
   );
