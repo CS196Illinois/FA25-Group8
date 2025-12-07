@@ -295,8 +295,7 @@ export default function ProfileScreen() {
       }
     } catch (error: any) {
       Alert.alert('Error', error.message);
-    }
-  };
+    }  };
 
   if (!user) {
     return (
