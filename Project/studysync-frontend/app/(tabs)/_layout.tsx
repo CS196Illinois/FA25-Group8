@@ -38,12 +38,35 @@ export default function TabLayout() {
           title: 'Campus',
           // Function that renders the tab icon, receives color and focus state from Tabs
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons 
+            <Ionicons
               // Ternary: if tab is focused (active), show solid icon; otherwise show outline
-              name={focused ? 'map' : 'map-outline'} 
-              size={24} 
+              name={focused ? 'map' : 'map-outline'}
+              size={24}
               // Color is managed by Tabs component based on theme and focus state
-              color={color} 
+              color={color}
+            />
+          ),
+        }}
+      />
+
+      {/* Feedback Tab
+       * AI-ASSISTED
+       * Source/Tool: Claude Code
+       * Author/Reviewer: Arshad
+       * Date: 2025-12-05
+       * Purpose: Display user's past feedback submissions (privacy-focused: users only see their own reviews)
+       * Route: Maps to app/(tabs)/feedback.tsx via expo-router file-based routing
+       * Icon: Uses Ionicons chatbox/chatbox-outline for feedback/reviews theme
+       */}
+      <Tabs.Screen
+        name="feedback"
+        options={{
+          title: 'Feedback',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'chatbox' : 'chatbox-outline'}
+              size={24}
+              color={color}
             />
           ),
         }}

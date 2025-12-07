@@ -119,7 +119,7 @@ interface SelectedLocation {
 }
 
 interface StudySession {
-  id: string; 
+  id: string;
   creatorId: string;
   creatorName: string;
   course: string;
@@ -134,6 +134,17 @@ interface StudySession {
   attendees: string[];
   isFull: boolean;
   createdAt: Date;
+}
+
+// Feedback data structure stored in Firestore
+interface SessionFeedback {
+  id: string;
+  sessionId: string;       // Which session was reviewed
+  userId: string;          // Who submitted the feedback
+  locationName: string;    // Denormalized for analytics
+  rating: number;          // 1-5 stars
+  comment?: string;        // Optional feedback text
+  createdAt: Date;         // When submitted
 }
 
 // DATA & MAP UTILITIES
@@ -486,13 +497,138 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
   );
 };
 
+/* AI-ASSISTED: FeedbackModal Component
+   Source/Tool: Claude Code
+   Author/Reviewer: Arshad
+   Date: 2025-12-05
+   Why AI: Implement star rating UI and feedback submission quickly with validation.
+   Notes: Users can rate sessions 1-5 stars and optionally add comments. */
+const FeedbackModal: React.FC<{
+  visible: boolean;
+  session: StudySession | null;
+  onClose: () => void;
+  onSubmit: (sessionId: string, rating: number, comment: string) => Promise<void>;
+}> = ({ visible, session, onClose, onSubmit }) => {
+  // FILTER 1: Track selected star rating (1-5)
+  const [rating, setRating] = useState(0);
+  // FILTER 2: Track optional comment text
+  const [comment, setComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Reset form when modal opens with a new session
+  useEffect(() => {
+    if (visible) {
+      setRating(0);
+      setComment('');
+    }
+  }, [visible]);
+
+  const handleSubmit = async () => {
+    // VALIDATION: Rating is required (1-5 stars), comment is optional
+    if (rating === 0) {
+      Alert.alert('Rating Required', 'Please select a star rating before submitting.');
+      return;
+    }
+
+    if (!session) return;
+
+    setIsSubmitting(true);
+    try {
+      // Submit feedback with sessionId, rating, and optional comment
+      await onSubmit(session.id, rating, comment.trim());
+      Alert.alert('Thank you!', 'Your feedback has been submitted.');
+      onClose();
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      Alert.alert('Error', 'Could not submit feedback. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal animationType="slide" transparent visible={visible} onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalBackdrop}>
+        <Pressable style={styles.modalBackdrop} onPress={onClose} />
+        <View style={[styles.modalContent, { height: 500 }]}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Rate Your Study Session</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close-circle" size={30} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.formScrollView} showsVerticalScrollIndicator={false}>
+            {session && (
+              <View style={{ marginBottom: 20 }}>
+                <Text style={{ fontSize: 18, fontWeight: '700', color: '#3B82F6', marginBottom: 4 }}>
+                  {session.course} — {session.topic}
+                </Text>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>
+                  Location: {session.locationName}
+                </Text>
+                <Text style={{ fontSize: 14, color: '#6B7280' }}>
+                  {formatDate(session.startTime)} at {formatTime(session.startTime)}
+                </Text>
+              </View>
+            )}
+
+            <Text style={styles.label}>How was the study location? *</Text>
+
+            {/* STAR RATING UI: User taps stars to select 1-5 rating */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginVertical: 20 }}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <TouchableOpacity
+                  key={star}
+                  onPress={() => setRating(star)}
+                  style={{ marginHorizontal: 8 }}
+                  accessibilityLabel={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                >
+                  <Ionicons
+                    name={star <= rating ? 'star' : 'star-outline'}
+                    size={40}
+                    color={star <= rating ? '#F59E0B' : '#D1D5DB'}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.label}>Additional Comments (Optional)</Text>
+            <TextInput
+              style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
+              placeholder="Share your experience with this location..."
+              value={comment}
+              onChangeText={setComment}
+              multiline
+              numberOfLines={4}
+              placeholderTextColor="#9CA3AF"
+            />
+
+            <TouchableOpacity
+              style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <Text style={styles.submitButtonText}>Submit Feedback</Text>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+};
+
 // MAIN COMPONENT: StudySessionsScreen
 const StudySessionsScreen = () => {
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  
+
   /* AI-ASSISTED
     Source/Tool: GitHub Copilot (Chat)
     Author/Reviewer: Elias Ghanayem
@@ -500,7 +636,16 @@ const StudySessionsScreen = () => {
     Why AI: Implemented a simple, flexible search state and matcher quickly.
     Policy note: Comments are concise and policy-compliant (no long teaching notes). */
   const [searchText, setSearchText] = useState('');
-  
+
+  /* AI-ASSISTED: Feedback Modal State
+     Source/Tool: Claude Code
+     Author/Reviewer: Arshad
+     Date: 2025-12-05
+     Why AI: Track feedback UI state and submission efficiently. */
+  const [isFeedbackModalVisible, setIsFeedbackModalVisible] = useState(false);
+  const [sessionToReview, setSessionToReview] = useState<StudySession | null>(null);
+  const [submittedFeedbackIds, setSubmittedFeedbackIds] = useState<Set<string>>(new Set());
+
   const { user, logOut } = useAuth();
 
   useEffect(() => {
@@ -571,6 +716,72 @@ const StudySessionsScreen = () => {
       }
     };
   }, [user]);
+
+  /* AI-ASSISTED: Load User's Existing Feedback
+     Source/Tool: Claude Code
+     Author/Reviewer: Arshad
+     Date: 2025-12-05
+     Why AI: Track which sessions user has already reviewed to avoid duplicate prompts.
+     Logic: Query "feedbacks" collection for current user, store session IDs in Set. */
+  useEffect(() => {
+    if (!user) return;
+
+    const loadExistingFeedback = async () => {
+      try {
+        const db = getFirestore(FIREBASE_APP);
+        const feedbackCollectionRef = collection(db, 'feedbacks');
+        // Query only feedback submitted by this user
+        const q = query(feedbackCollectionRef);
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+          const userFeedbackSessionIds = new Set<string>();
+          snapshot.docs.forEach((doc) => {
+            const data = doc.data();
+            // Only track sessions where this user submitted feedback
+            if (data.userId === user.uid) {
+              userFeedbackSessionIds.add(data.sessionId);
+            }
+          });
+          setSubmittedFeedbackIds(userFeedbackSessionIds);
+        });
+
+        return () => unsubscribe();
+      } catch (e) {
+        console.error('Error loading existing feedback:', e);
+      }
+    };
+
+    loadExistingFeedback();
+  }, [user]);
+
+  /* AI-ASSISTED: Detect Ended Sessions Needing Feedback
+     Source/Tool: Claude Code
+     Author/Reviewer: Arshad
+     Date: 2025-12-05
+     Why AI: Check for sessions that ended recently and prompt user for feedback.
+     Logic: FILTER 1: User attended session
+            FILTER 2: Session has ended (startTime < now)
+            FILTER 3: User hasn't already submitted feedback for this session */
+  useEffect(() => {
+    if (!user || sessions.length === 0) return;
+
+    const now = new Date();
+
+    // FILTER 1: Find sessions where user was an attendee
+    const attendedSessions = sessions.filter(s => s.attendees.includes(user.uid));
+
+    // FILTER 2: Find sessions that have ended (startTime in the past)
+    const endedSessions = attendedSessions.filter(s => s.startTime < now);
+
+    // FILTER 3: Find sessions not yet reviewed by this user
+    const needsFeedback = endedSessions.filter(s => !submittedFeedbackIds.has(s.id));
+
+    // If there's at least one session needing feedback, prompt for the first one
+    if (needsFeedback.length > 0) {
+      setSessionToReview(needsFeedback[0]);
+      setIsFeedbackModalVisible(true);
+    }
+  }, [sessions, user, submittedFeedbackIds]);
 
   /* AI-ASSISTED
      Source/Tool: GitHub Copilot (Chat)
@@ -715,6 +926,47 @@ const StudySessionsScreen = () => {
       alert(error instanceof Error ? error.message : 'Failed to leave session');
     }
   };
+  /* AI-ASSISTED: Submit Session Feedback
+     Source/Tool: Claude Code
+     Author/Reviewer: Arshad
+     Date: 2025-12-05
+     Why AI: Store feedback in Firestore with proper validation.
+     Logic: Write to "feedbacks" collection with sessionId, userId, rating, comment, timestamp */
+  const handleSubmitFeedback = async (sessionId: string, rating: number, comment: string) => {
+    if (!user) {
+      throw new Error('You must be logged in to submit feedback');
+    }
+
+    try {
+      const db = getFirestore(FIREBASE_APP);
+      const feedbackCollectionRef = collection(db, 'feedbacks');
+
+      // Find the session to get location name (denormalized for analytics)
+      const session = sessions.find(s => s.id === sessionId);
+      if (!session) {
+        throw new Error('Session not found');
+      }
+
+      // Create feedback document
+      await addDoc(feedbackCollectionRef, {
+        sessionId,
+        userId: user.uid,
+        locationName: session.locationName,
+        rating,
+        comment: comment || undefined, // Only store comment if not empty
+        createdAt: serverTimestamp(),
+      });
+
+      console.log('Feedback submitted successfully');
+
+      // Add to local submitted set to prevent duplicate prompts
+      setSubmittedFeedbackIds(prev => new Set(prev).add(sessionId));
+    } catch (error) {
+      console.error('Error submitting feedback:', error);
+      throw error;
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await logOut();
@@ -750,6 +1002,12 @@ const StudySessionsScreen = () => {
   return (
     <SafeAreaView style={styles.container}>
       <CreateSessionModal visible={isModalVisible} onClose={() => setIsModalVisible(false)} />
+      <FeedbackModal
+        visible={isFeedbackModalVisible}
+        session={sessionToReview}
+        onClose={() => setIsFeedbackModalVisible(false)}
+        onSubmit={handleSubmitFeedback}
+      />
       <View style={styles.listFrame}>
         <View style={styles.header}>
           <Text style={styles.listTitle}>Upcoming Study Sessions</Text>
