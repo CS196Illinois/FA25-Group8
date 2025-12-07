@@ -1167,7 +1167,7 @@ const StudySessionsScreen = () => {
 
   /* AI-ASSISTED: Detect Ended Sessions Needing Feedback
      Source/Tool: Claude Code
-     Author/Reviewer: Arshad
+     Author/Reviewer: Elias Ghanayem
      Date: 2025-12-05
      Why AI: Check for sessions that ended recently and prompt user for feedback.
      Logic: FILTER 1: User attended session
@@ -1307,8 +1307,8 @@ const StudySessionsScreen = () => {
   /* ============ SESSION JOIN/LEAVE FUNCTIONS ============
      AI-ASSISTED
      Source/Tool: GitHub Copilot (Chat) + Manual Implementation
-     Author/Reviewer: Aryan + Team
-     Date: 2024-11-11
+     Author/Reviewer: Aryan
+     Date: 2025-11-11
      Why AI: Needed Firestore transaction logic for safe concurrent updates to attendee lists.
      Notes: Tested join/leave with multiple users simultaneously. Verified capacity limits,
             isFull flag updates, and user already-joined validation. */
@@ -1434,7 +1434,7 @@ const StudySessionsScreen = () => {
       alert(error instanceof Error ? error.message : 'Failed to leave session');
     }
   };
-
+  
   /* AI-ASSISTED: Submit Session Feedback
      Source/Tool: Claude Code
      Author/Reviewer: Arshad

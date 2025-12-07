@@ -1,6 +1,6 @@
 /* AI-ASSISTED: Feedback History Screen
    Source/Tool: Claude Code
-   Author/Reviewer: Arshad
+   Author/Reviewer: Arsh
    Date: 2025-12-05
    Why AI: Display user's past feedback submissions with session details.
    Purpose: Allow users to view their own feedback history (privacy-focused design) */
