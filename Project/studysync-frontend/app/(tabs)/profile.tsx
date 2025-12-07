@@ -30,6 +30,7 @@ import {
   where,
   onSnapshot,
   Timestamp,
+  getDocs,
 } from 'firebase/firestore';
 import { FIREBASE_APP, FIREBASE_AUTH } from '../../firebaseConfig';
 import { updateEmail, updatePassword } from 'firebase/auth';
@@ -343,11 +344,11 @@ export default function ProfileScreen() {
         <View style={styles.statsRow}>
           <View style={[styles.statCard, { backgroundColor: '#EFF6FF' }]}>
             <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{createdSessions.length}</Text>
-            <Text style={styles.statLabel}>Created</Text>
+            <Text style={[styles.statLabel, { color: '#3B82F6' }]}>Created</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: '#ECFDF5' }]}>
             <Text style={[styles.statNumber, { color: '#10B981' }]}>{joinedSessions.length}</Text>
-            <Text style={styles.statLabel}>Joined</Text>
+            <Text style={[styles.statLabel, { color: '#10B981' }]}>Joined</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: '#F3F4F6' }]}>
             <Text style={[styles.statNumber, { color: '#6B7280' }]}>{pastSessions.length}</Text>

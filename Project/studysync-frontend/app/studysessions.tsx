@@ -504,10 +504,10 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
             keyboardDismissMode="on-drag"
           >
             <Text style={styles.label}>Course</Text>
-            <TextInput style={styles.input} placeholder="e.g., CS 124" value={course} onChangeText={setCourse} />
+            <TextInput style={styles.input} placeholder="e.g., CS 124" placeholderTextColor="#9CA3AF" value={course} onChangeText={setCourse} />
 
             <Text style={styles.label}>Topic</Text>
-            <TextInput style={styles.input} placeholder="e.g., Midterm 1 Prep" value={topic} onChangeText={setTopic} />
+            <TextInput style={styles.input} placeholder="e.g., Midterm 1 Prep" placeholderTextColor="#9CA3AF" value={topic} onChangeText={setTopic} />
 
             <Text style={styles.label}>Location</Text>
             {/*
@@ -637,7 +637,7 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
             )}
 
             <Text style={styles.label}>Location Details (Optional)</Text>
-            <TextInput style={styles.input} placeholder="e.g., Room 12, Main Library" value={locationDetails} onChangeText={setLocationDetails} />
+            <TextInput style={styles.input} placeholder="e.g., Room 12, Main Library" placeholderTextColor="#9CA3AF" value={locationDetails} onChangeText={setLocationDetails} />
 
             <Text style={styles.label}>Start Time</Text>
             <TouchableOpacity
@@ -701,7 +701,7 @@ const CreateSessionModal: React.FC<{ visible: boolean; onClose: () => void }> = 
             )}
 
             <Text style={styles.label}>Capacity (Optional)</Text>
-            <TextInput style={styles.input} placeholder="e.g., 10" value={capacity} onChangeText={setCapacity} keyboardType="number-pad" />
+            <TextInput style={styles.input} placeholder="e.g., 10" placeholderTextColor="#9CA3AF" value={capacity} onChangeText={setCapacity} keyboardType="number-pad" />
 
             <TouchableOpacity style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]} onPress={handleSubmit} disabled={isSubmitting}>
               {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitButtonText}>Create Session</Text>}
@@ -830,6 +830,7 @@ const FilterModal: React.FC<{
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 09:00"
+                placeholderTextColor="#9CA3AF"
                 value={filterStartTime}
                 onChangeText={onStartTimeChange}
                 keyboardType="numbers-and-punctuation"
@@ -839,6 +840,7 @@ const FilterModal: React.FC<{
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 17:00"
+                placeholderTextColor="#9CA3AF"
                 value={filterEndTime}
                 onChangeText={onEndTimeChange}
                 keyboardType="numbers-and-punctuation"
@@ -849,6 +851,7 @@ const FilterModal: React.FC<{
               <TextInput
                 style={styles.input}
                 placeholder="e.g., 10"
+                placeholderTextColor="#9CA3AF"
                 value={filterCapacity}
                 onChangeText={onCapacityChange}
                 keyboardType="number-pad"
@@ -1212,13 +1215,19 @@ const StudySessionsScreen = () => {
     const q = normalize(searchText || '');
     let filtered = sessions;
 
-    // FILTER: Hide sessions that started more than 1 hour ago
-    // Sessions remain visible until 1 hour after their start time
+    // FILTER: Hide sessions that have ended
+    // If session has an explicit end time, use it; otherwise use start time + 1 hour
     const now = new Date();
     const oneHourInMs = 60 * 60 * 1000; // 1 hour in milliseconds (60 min × 60 sec × 1000 ms)
     filtered = filtered.filter(s => {
-      const oneHourAfterStart = new Date(s.startTime.getTime() + oneHourInMs);
-      return oneHourAfterStart >= now; // Show if current time is before (start time + 1 hour)
+      if (s.endTime) {
+        // If session has explicit end time, hide after it passes
+        return s.endTime >= now;
+      } else {
+        // Otherwise, hide 1 hour after start time
+        const oneHourAfterStart = new Date(s.startTime.getTime() + oneHourInMs);
+        return oneHourAfterStart >= now;
+      }
     });
 
     // Apply search filter
